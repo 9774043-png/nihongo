@@ -179,7 +179,7 @@
       </div>
 
       <!-- Kana Cards Grid -->
-      <div id="kanaGrid" class="grid grid-cols-5 gap-2 sm:gap-2.5"></div>
+      <div id="kanaGrid" class="grid grid-cols-5 gap-1.5"></div>
 
       <!-- ======================================================== -->
       <!-- 50音互動描寫手寫板 + 聯想單字情境卡片 (Writing Studio)   -->
@@ -248,14 +248,9 @@
               </button>
             </div>
 
-            <!-- Mnemonic Context Image -->
-            <div class="relative w-full h-28 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 shadow-inner group">
-              <img id="mnemonicImg" src="" alt="聯想單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-              <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
-              <div class="absolute bottom-2 left-3 right-3 flex justify-between items-end text-white text-[11px] font-medium drop-shadow-md">
-                <span id="mnemonicImgLabel"><i class="fa-solid fa-image mr-1 text-rose-400"></i>情境圖卡</span>
-                <span id="mnemonicCategoryTag" class="opacity-90">生活日常</span>
-              </div>
+            <!-- Mnemonic Image：純 emoji 小圖卡（文字見下方欄位） -->
+            <div class="relative w-20 h-20 mx-auto rounded-xl overflow-hidden shadow-sm">
+              <img id="mnemonicImg" src="" alt="聯想圖示" class="w-full h-full object-cover">
             </div>
 
             <!-- Mnemonic Word & Details -->
@@ -358,11 +353,7 @@
             <div class="flex justify-center items-center my-auto py-1">
               <div class="relative w-32 sm:w-40 aspect-[5/4] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-rose-100/80 dark:border-slate-700/80 shadow-md group">
                 <img id="fcImage" src="" alt="單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
-                <div class="absolute bottom-1.5 left-2.5 right-2.5 flex justify-between items-end text-white text-[10px] font-medium drop-shadow-md">
-                  <span id="fcVisualConceptTag"><i class="fa-solid fa-image mr-1 text-rose-400"></i>情境聯想</span>
-                  <span id="fcCardCategoryName" class="opacity-90">超商生活</span>
-                </div>
+  
               </div>
             </div>
 
@@ -845,7 +836,7 @@
        ========================================================================== */
     const PLACEHOLDER_ACCENTS = ['#e11d48', '#0f766e', '#7c3aed', '#b45309', '#1d4ed8', '#be123c'];
 
-    function placeholderImage(mainText, subText, emoji) {
+    function placeholderImage(mainText, subText, emoji, textless) {
       const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const main = esc(mainText || '？');
       const sub = esc(subText || '');
@@ -855,6 +846,14 @@
       const accent = PLACEHOLDER_ACCENTS[h % PLACEHOLDER_ACCENTS.length];
       const plain = String(mainText || '').replace(/<[^>]*>/g, '');
       const size = plain.length > 8 ? 44 : plain.length > 5 ? 58 : 80;
+      // textOnly=false 時只畫 emoji + 背景（圖卡當純視覺，文字留給下方欄位，避免重複）
+      const body = textless
+        ? (icon ? '<text x="250" y="238" text-anchor="middle" font-size="190">' + icon + '</text>' : '')
+        : (icon ? '<text x="250" y="142" text-anchor="middle" font-size="72">' + icon + '</text>' : '') +
+          '<text x="250" y="' + (icon ? 222 : 212) + '" text-anchor="middle" fill="#ffffff" font-weight="700" ' +
+            'font-family="Noto Sans JP, Hiragino Sans, sans-serif" font-size="' + size + '">' + main + '</text>' +
+          '<text x="250" y="' + (icon ? 276 : 268) + '" text-anchor="middle" fill="#ffffff" opacity="0.78" ' +
+            'font-family="system-ui, sans-serif" font-size="24">' + sub + '</text>';
       const svg =
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400">' +
           '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
@@ -864,20 +863,16 @@
           '<rect width="500" height="400" fill="url(#g)"/>' +
           '<circle cx="440" cy="54" r="120" fill="#ffffff" opacity="0.08"/>' +
           '<circle cx="60" cy="350" r="95" fill="#ffffff" opacity="0.06"/>' +
-          // 內容集中於 viewBox 垂直中段，扁容器用 object-cover 裁切時核心仍完整
-          (icon ? '<text x="250" y="142" text-anchor="middle" font-size="72">' + icon + '</text>' : '') +
-          '<text x="250" y="' + (icon ? 222 : 212) + '" text-anchor="middle" fill="#ffffff" font-weight="700" ' +
-            'font-family="Noto Sans JP, Hiragino Sans, sans-serif" font-size="' + size + '">' + main + '</text>' +
-          '<text x="250" y="' + (icon ? 276 : 268) + '" text-anchor="middle" fill="#ffffff" opacity="0.78" ' +
-            'font-family="system-ui, sans-serif" font-size="24">' + sub + '</text>' +
+          body +
         '</svg>';
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     }
 
     // 直接套用本地圖卡（不再有外部請求，也就沒有載入失敗的灰白方塊）
-    function setCardImage(imgEl, mainText, subText, emoji) {
+    // textless=true：圖卡只顯示 emoji，文字資訊交給卡片其他欄位，不重複
+    function setCardImage(imgEl, mainText, subText, emoji, textless) {
       if (!imgEl) return;
-      imgEl.src = placeholderImage(mainText, subText, emoji);
+      imgEl.src = placeholderImage(mainText, subText, emoji, textless);
     }
 
     function catEmoji(catKey) {
@@ -1505,26 +1500,23 @@
       list.forEach(item => {
         if (item.empty) {
           const emptyCell = document.createElement('div');
-          emptyCell.className = 'aspect-square opacity-0 pointer-events-none';
+          emptyCell.className = 'opacity-0 pointer-events-none';
           grid.appendChild(emptyCell);
           return;
         }
 
         const card = document.createElement('div');
-        card.className = `group aspect-square rounded-2xl p-2 flex flex-col items-center justify-between border cursor-pointer transition transform active:scale-95 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-700 shadow-sm`;
+        card.className = `group rounded-xl pt-1 pb-1.5 px-1 flex flex-col items-center border cursor-pointer transition transform active:scale-95 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-700 shadow-sm`;
 
         card.innerHTML = `
-          <div class="w-full flex justify-between items-center text-[10px] text-slate-400">
+          <div class="w-full flex justify-between items-center text-[10px] text-slate-400 leading-none">
             <span>${item.romaji}</span>
-            <button class="kana-sound-btn p-1 text-slate-300 hover:text-rose-500" data-char="${item.char}">
+            <button class="kana-sound-btn p-0.5 text-slate-300 hover:text-rose-500" data-char="${item.char}">
               <i class="fa-solid fa-volume-high text-[10px]"></i>
             </button>
           </div>
-          <div class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-100 font-sans group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+          <div class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-100 font-sans group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-tight">
             ${item.char}
-          </div>
-          <div class="text-[9px] text-slate-400 font-mono">
-            ${STATE.kanaType === 'hiragana' ? '平' : '片'}
           </div>
         `;
 
@@ -1667,10 +1659,9 @@
       document.getElementById('mnemonicWordJp').innerHTML = m.word;
       document.getElementById('mnemonicRomaji').textContent = m.romaji;
       document.getElementById('mnemonicMeaning').textContent = m.meaning;
-      document.getElementById('mnemonicCategoryTag').textContent = m.cat;
       document.getElementById('mnemonicTip').textContent = `💡 ${m.tip}`;
 
-      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, wordEmoji(m.plain, m.meaning, null));
+      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, wordEmoji(m.plain, m.meaning, null), true);
 
       // Audio triggers
       document.getElementById('btnPlayMnemonicAudio').onclick = () => playJapaneseAudio(m.plain);
@@ -2255,12 +2246,11 @@
       }
 
       document.getElementById('fcTagLevel').textContent = `${current.level} • ${getCatName(current.cat)}`;
-      document.getElementById('fcCardCategoryName').textContent = getCatName(current.cat);
       
       setCardImage(document.getElementById('fcImage'),
-        STATE.recallMode ? '？' : current.plain,
-        STATE.recallMode ? '先想想日語怎麼說' : current.meaning,
-        STATE.recallMode ? '❓' : wordEmoji(current.plain, current.meaning, current.cat));
+        '', '',
+        STATE.recallMode ? '❓' : wordEmoji(current.plain, current.meaning, current.cat),
+        true);
 
       document.getElementById('fcWord').innerHTML = current.word;
       document.getElementById('fcRomaji').textContent = current.romaji;
