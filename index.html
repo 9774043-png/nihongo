@@ -194,7 +194,6 @@
                 <span id="studioRomajiDisplay" class="text-base font-bold text-slate-800 dark:text-slate-100">a</span>
                 <span id="studioOriginDisplay" class="text-xs px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-300 font-medium">源自漢字：安</span>
               </div>
-              <p class="text-[11px] text-slate-400">觸控或滑鼠在九宮格米字輔助線內練習筆順</p>
             </div>
           </div>
           <div class="flex items-center gap-1.5">
@@ -242,16 +241,13 @@
               <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300">
                 <i class="fa-solid fa-lightbulb mr-1"></i> 50音生活圖像聯想
               </span>
-              <button id="btnPlayMnemonicAudio" class="text-xs px-2.5 py-1 rounded-xl bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-rose-100 dark:border-slate-600 flex items-center gap-1 hover:scale-105 active:scale-95 transition">
-                <i class="fa-solid fa-volume-high"></i>
-                <span class="font-bold">單字發音</span>
+              <button id="btnPlayMnemonicAudio" class="w-9 h-9 rounded-full bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-rose-100 dark:border-slate-600 flex items-center justify-center hover:scale-105 active:scale-95 transition" title="聯想單字發音">
+                <i class="fa-solid fa-volume-high text-lg"></i>
               </button>
             </div>
 
-            <!-- Mnemonic Image：純 emoji 小圖卡（文字見下方欄位） -->
-            <div class="relative w-20 h-20 mx-auto rounded-xl overflow-hidden shadow-sm">
-              <img id="mnemonicImg" src="" alt="聯想圖示" class="w-full h-full object-cover">
-            </div>
+            <!-- Mnemonic Emoji：淺底大圖示（文字見下方欄位） -->
+            <div id="mnemonicEmoji" class="w-28 h-28 mx-auto rounded-2xl bg-rose-50 dark:bg-slate-800 flex items-center justify-center text-7xl leading-none shadow-sm select-none"></div>
 
             <!-- Mnemonic Word & Details -->
             <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-rose-100 dark:border-slate-800 space-y-1">
@@ -780,6 +776,16 @@
      * 關鍵修正：必須先刪掉 <rt>…</rt> 的注音內容，否則
      * 「<ruby>温<rt>あたた</rt></ruby>めます」會被唸成「温あたためます」。
      */
+    // 從 ruby 單字抽出純假名讀音（漢字換成其注音），讓 TTS 唸得準確。
+    // 例：'<ruby>朝<rt>あさ</rt></ruby>' → 'あさ'；'お<ruby>茶<rt>ちゃ</rt></ruby>' → 'おちゃ'
+    function toReading(html) {
+      return String(html)
+        .replace(/<ruby>[^<]*<rt>([^<]*)<\/rt><\/ruby>/g, '$1')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, '')
+        .trim();
+    }
+
     function toSpeakableText(html) {
       return String(html)
         .replace(/<rp>[\s\S]*?<\/rp>/gi, '')
@@ -1661,10 +1667,12 @@
       document.getElementById('mnemonicMeaning').textContent = m.meaning;
       document.getElementById('mnemonicTip').textContent = `💡 ${m.tip}`;
 
-      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, wordEmoji(m.plain, m.meaning, null), true);
+      document.getElementById('mnemonicEmoji').textContent = wordEmoji(m.plain, m.meaning, null);
 
       // Audio triggers
-      document.getElementById('btnPlayMnemonicAudio').onclick = () => playJapaneseAudio(m.plain);
+      // 用平假名讀音發音（比直接唸漢字更準確）
+      const mnemonicReading = toReading(m.word) || m.plain;
+      document.getElementById('btnPlayMnemonicAudio').onclick = () => playJapaneseAudio(mnemonicReading);
       document.getElementById('btnPlayStudioKanaAudio').onclick = () => playJapaneseAudio(item.char);
 
       // Reveal Studio Card & Recalculate Canvas DPI
