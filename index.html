@@ -153,12 +153,12 @@
   </header>
 
   <!-- Main Scrollable App Container -->
-  <main class="flex-1 overflow-y-auto pb-24 px-3 sm:px-4 pt-3 max-w-3xl mx-auto w-full">
+  <main class="flex-1 overflow-y-auto pb-20 px-3 sm:px-4 pt-2 max-w-3xl mx-auto w-full">
 
     <!-- ============================================================== -->
     <!-- MODULE 1: 五十音特訓所 & 筆順練習 + 圖像單字聯想卡片           -->
     <!-- ============================================================== -->
-    <section id="module-kana" class="tab-module space-y-4">
+    <section id="module-kana" class="tab-module space-y-2.5">
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800">
         <div class="flex items-center justify-between mb-3">
           <div class="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800">
@@ -184,7 +184,7 @@
       <!-- ======================================================== -->
       <!-- 50音互動描寫手寫板 + 聯想單字情境卡片 (Writing Studio)   -->
       <!-- ======================================================== -->
-      <div id="kanaWritingStudio" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-xl border-2 border-rose-200 dark:border-slate-800 space-y-4">
+      <div id="kanaWritingStudio" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-3 sm:p-4 shadow-xl border-2 border-rose-200 dark:border-slate-800 space-y-3">
         <!-- Studio Top Bar -->
         <div class="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-3">
@@ -208,11 +208,11 @@
         </div>
 
         <!-- Studio Main Body: Grid Canvas (Left) + Mnemonic Word Card (Right) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
           
           <!-- LEFT: Writing Canvas with Mizige Grid & Guide Character -->
           <div class="flex flex-col items-center space-y-3">
-            <div id="canvasContainer" class="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-rose-300 dark:border-rose-900/60 mizige-grid bg-white dark:bg-slate-950 touch-none shadow-inner">
+            <div id="canvasContainer" class="relative w-full aspect-square max-w-[220px] rounded-2xl overflow-hidden border-2 border-rose-300 dark:border-rose-900/60 mizige-grid bg-white dark:bg-slate-950 touch-none shadow-inner">
               <!-- Translucent background guide font (never gets cleared) -->
               <div id="canvasGuideChar" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 dark:opacity-25 text-[150px] font-black text-rose-500 font-sans select-none">
                 あ
@@ -222,13 +222,11 @@
             </div>
 
             <!-- Canvas Controls: Brush colour & clear -->
-            <div class="w-full max-w-[280px] flex items-center justify-between text-xs">
+            <div class="w-full max-w-[220px] flex items-center justify-between text-xs">
               <!-- Brush Color -->
               <div class="flex items-center gap-1.5">
                 <span class="text-[11px] text-slate-400 font-semibold mr-1">筆色:</span>
-                <button class="brush-color-btn w-5 h-5 rounded-full bg-rose-600 ring-2 ring-rose-400 transition" data-color="sakura" title="櫻花紅"></button>
-                <button class="brush-color-btn w-5 h-5 rounded-full bg-slate-900 dark:bg-slate-100 transition" data-color="ink" title="水墨黑/白"></button>
-                <button class="brush-color-btn w-5 h-5 rounded-full bg-emerald-600 transition" data-color="matcha" title="抹茶綠"></button>
+                <button class="brush-color-btn w-5 h-5 rounded-full bg-slate-900 dark:bg-slate-100 ring-2 ring-slate-400 transition" data-color="ink" title="水墨黑（深色模式為白）"></button>
               </div>
 
               <!-- Clear Action -->
@@ -251,7 +249,7 @@
             </div>
 
             <!-- Mnemonic Context Image -->
-            <div class="relative w-full h-36 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 shadow-inner group">
+            <div class="relative w-full h-28 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 shadow-inner group">
               <img id="mnemonicImg" src="" alt="聯想單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
               <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
               <div class="absolute bottom-2 left-3 right-3 flex justify-between items-end text-white text-[11px] font-medium drop-shadow-md">
@@ -282,7 +280,7 @@
       </div>
 
       <!-- Quick Kana Quiz Modal -->
-      <div id="kanaQuizModal" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-rose-200 dark:border-slate-800 space-y-4">
+      <div id="kanaQuizModal" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-xl border border-rose-200 dark:border-slate-800 space-y-3">
         <div class="flex justify-between items-center">
           <span class="text-xs font-bold text-rose-500 tracking-wider uppercase">50 音快速音形測驗</span>
           <button id="btnCloseQuiz" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
@@ -304,7 +302,7 @@
     <!-- ============================================================== -->
     <!-- MODULE 2: 多情境圖解單字庫與 SRS (Visual Vocab Flashcards)       -->
     <!-- ============================================================== -->
-    <section id="module-vocab" class="tab-module hidden space-y-3.5">
+    <section id="module-vocab" class="tab-module hidden space-y-2.5">
       <!-- Category & Level Selectors + Image Recall Mode Toggle -->
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
         <div class="flex items-center justify-between flex-wrap gap-2">
@@ -342,7 +340,7 @@
       </div>
 
       <!-- 3D Flip Visual Card (Refined Height with 5:4 Photo Ratio) -->
-      <div class="perspective-1000 w-full h-[400px] sm:h-[420px]">
+      <div class="perspective-1000 w-full h-[330px] sm:h-[350px]">
         <div id="flashcardInner" class="card-flipper cursor-pointer shadow-md rounded-3xl">
           
           <!-- FRONT FACE (Visual Image + Japanese Character) -->
@@ -358,7 +356,7 @@
             
             <!-- Centered 5:4 Aspect Ratio Flashcard Photo Frame -->
             <div class="flex justify-center items-center my-auto py-1">
-              <div class="relative w-48 sm:w-56 aspect-[5/4] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-rose-100/80 dark:border-slate-700/80 shadow-md group">
+              <div class="relative w-32 sm:w-40 aspect-[5/4] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-rose-100/80 dark:border-slate-700/80 shadow-md group">
                 <img id="fcImage" src="" alt="單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
                 <div class="absolute bottom-1.5 left-2.5 right-2.5 flex justify-between items-end text-white text-[10px] font-medium drop-shadow-md">
@@ -462,8 +460,8 @@
     <!-- ============================================================== -->
     <!-- MODULE 3: 看圖識詞 視覺聯想速測 (Visual Image Quiz Mode)         -->
     <!-- ============================================================== -->
-    <section id="module-quiz" class="tab-module hidden space-y-4">
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+    <section id="module-quiz" class="tab-module hidden space-y-2.5">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
         <!-- Quiz Top Header: Streak & Score -->
         <div class="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-2">
@@ -509,7 +507,7 @@
     <!-- ============================================================== -->
     <!-- MODULE 4: 實境會話模擬器 (Situational Branching Dialogue)        -->
     <!-- ============================================================== -->
-    <section id="module-dialogue" class="tab-module hidden space-y-4">
+    <section id="module-dialogue" class="tab-module hidden space-y-2.5">
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800">
         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">選擇實境任務劇本</span>
         <div class="grid grid-cols-3 gap-2">
@@ -579,7 +577,7 @@
     <!-- ============================================================== -->
     <!-- MODULE 6: N4 文法句型庫與文法小測 (Grammar Bank)                -->
     <!-- ============================================================== -->
-    <section id="module-grammar" class="tab-module hidden space-y-3.5">
+    <section id="module-grammar" class="tab-module hidden space-y-2.5">
       <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center gap-2">
@@ -598,7 +596,7 @@
       </div>
 
       <!-- 文法小測面板 -->
-      <div id="grammarQuizPanel" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-rose-200 dark:border-slate-800 space-y-4">
+      <div id="grammarQuizPanel" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-xl border border-rose-200 dark:border-slate-800 space-y-3">
         <div class="flex justify-between items-center">
           <span class="text-xs font-bold text-rose-500 tracking-wider">文法填空小測</span>
           <div class="flex items-center gap-2">
@@ -623,8 +621,8 @@
       <p id="grammarEmpty" class="hidden text-center text-xs text-slate-400 py-6">找不到相符的句型，換個關鍵字試試。</p>
     </section>
 
-    <section id="module-speech" class="tab-module hidden space-y-4">
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+    <section id="module-speech" class="tab-module hidden space-y-2.5">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
             N4 實戰口語跟讀
@@ -649,7 +647,7 @@
         </div>
       </div>
 
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 text-center space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 text-center space-y-3">
         <div class="relative inline-block">
           <button id="btnRecordMic" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white text-2xl flex items-center justify-center shadow-lg shadow-rose-200 dark:shadow-rose-950 transition duration-200">
             <i class="fa-solid fa-microphone"></i>
@@ -731,7 +729,7 @@
       kanaFilter: 'seion',
       selectedKana: null,
       brushSize: 8, // 固定筆寬（原本的 S/M/L 切換已移除）
-      brushColor: 'sakura',
+      brushColor: 'ink', // 固定黑色（深色模式自動為白），紅／綠已移除
       isDrawing: false,
       lastPoint: null,
       // Vocab module
@@ -866,10 +864,11 @@
           '<rect width="500" height="400" fill="url(#g)"/>' +
           '<circle cx="440" cy="54" r="120" fill="#ffffff" opacity="0.08"/>' +
           '<circle cx="60" cy="350" r="95" fill="#ffffff" opacity="0.06"/>' +
-          (icon ? '<text x="250" y="150" text-anchor="middle" font-size="96">' + icon + '</text>' : '') +
-          '<text x="250" y="' + (icon ? 255 : 215) + '" text-anchor="middle" fill="#ffffff" font-weight="700" ' +
+          // 內容集中於 viewBox 垂直中段，扁容器用 object-cover 裁切時核心仍完整
+          (icon ? '<text x="250" y="142" text-anchor="middle" font-size="72">' + icon + '</text>' : '') +
+          '<text x="250" y="' + (icon ? 222 : 212) + '" text-anchor="middle" fill="#ffffff" font-weight="700" ' +
             'font-family="Noto Sans JP, Hiragino Sans, sans-serif" font-size="' + size + '">' + main + '</text>' +
-          '<text x="250" y="' + (icon ? 310 : 272) + '" text-anchor="middle" fill="#ffffff" opacity="0.78" ' +
+          '<text x="250" y="' + (icon ? 276 : 268) + '" text-anchor="middle" fill="#ffffff" opacity="0.78" ' +
             'font-family="system-ui, sans-serif" font-size="24">' + sub + '</text>' +
         '</svg>';
       return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
@@ -885,6 +884,248 @@
       const c = CATEGORIES.find(x => x.key === catKey);
       return c ? c.icon : '🗾';
     }
+
+    // 依單字的中文意思與日文，推斷一個相關的 emoji 當圖卡主視覺。
+    // 全部本地比對，不連網；查無對應時退回情境分類的圖示。
+    const EMOJI_RULES = [
+      ['富士山','🗻'],
+      ['溫泉','♨️'],
+      ['温泉','♨️'],
+      ['飯店','🏨'],
+      ['旅館','🏨'],
+      ['大廳','🛎️'],
+      ['銀行','🏦'],
+      ['醫院','🏥'],
+      ['診所','🏥'],
+      ['學校','🏫'],
+      ['超商','🏪'],
+      ['藥妝','💊'],
+      ['百貨','🏬'],
+      ['郵筒','📮'],
+      ['信箱','📮'],
+      ['大樓','🏢'],
+      ['摩天','🏢'],
+      ['咖啡廳','☕'],
+      ['食堂','🍴'],
+      ['餐廳','🍴'],
+      ['洗手間','🚻'],
+      ['廁所','🚻'],
+      ['房間','🛏️'],
+      ['客房','🛏️'],
+      ['新幹線','🚅'],
+      ['地下鐵','🚇'],
+      ['地鐵','🚇'],
+      ['捷運','🚇'],
+      ['電車','🚃'],
+      ['飛機','✈️'],
+      ['公車','🚌'],
+      ['巴士','🚌'],
+      ['計程車','🚕'],
+      ['腳踏車','🚲'],
+      ['自行車','🚲'],
+      ['車站','🚉'],
+      ['月台','🚉'],
+      ['轉乘','🔄'],
+      ['換車','🔄'],
+      ['剪票','🎫'],
+      ['車票','🎫'],
+      ['乘車券','🎫'],
+      ['搭乘','🚉'],
+      ['車輛','🚗'],
+      ['汽車','🚗'],
+      ['船','⛴️'],
+      ['小狗','🐕'],
+      ['狗','🐕'],
+      ['貓','🐈'],
+      ['昆蟲','🐛'],
+      ['大象','🐘'],
+      ['牛肉','🥩'],
+      ['便當','🍱'],
+      ['飯糰','🍙'],
+      ['白飯','🍚'],
+      ['米飯','🍚'],
+      ['壽司','🍣'],
+      ['拉麵','🍜'],
+      ['麵包','🍞'],
+      ['煎餃','🥟'],
+      ['餃子','🥟'],
+      ['披薩','🍕'],
+      ['蛋糕','🍰'],
+      ['巧克力','🍫'],
+      ['冰淇淋','🍦'],
+      ['優格','🥣'],
+      ['沙拉','🥗'],
+      ['濃湯','🍲'],
+      ['熱湯','🍲'],
+      ['雞蛋','🥚'],
+      ['玉子','🥚'],
+      ['豬肉','🥩'],
+      ['和牛','🥩'],
+      ['肉','🥩'],
+      ['小黃瓜','🥒'],
+      ['馬鈴薯','🥔'],
+      ['蘋果','🍎'],
+      ['柳橙','🍊'],
+      ['起司','🧀'],
+      ['乳酪','🧀'],
+      ['鹽','🧂'],
+      ['抹茶','🍵'],
+      ['綠茶','🍵'],
+      ['烏龍','🍵'],
+      ['茶','🍵'],
+      ['咖啡','☕'],
+      ['牛奶','🥛'],
+      ['果汁','🧃'],
+      ['飲料','🥤'],
+      ['啤酒','🍺'],
+      ['開水','💧'],
+      ['冰水','💧'],
+      ['魚','🐟'],
+      ['蔬菜','🥬'],
+      ['大海','🌊'],
+      ['海','🌊'],
+      ['天空','☁️'],
+      ['藍天','☁️'],
+      ['森林','🌲'],
+      ['櫻花','🌸'],
+      ['花','🌸'],
+      ['白雪','❄️'],
+      ['下雪','❄️'],
+      ['雪','❄️'],
+      ['雨','🌧️'],
+      ['世界','🌍'],
+      ['景色','🏞️'],
+      ['風景','🏞️'],
+      ['山','⛰️'],
+      ['炎熱','🥵'],
+      ['寒冷','🥶'],
+      ['好天氣','🌤️'],
+      ['天氣','🌤️'],
+      ['夜晚','🌙'],
+      ['夜間','🌙'],
+      ['夜','🌙'],
+      ['早晨','🌅'],
+      ['早上','🌅'],
+      ['藥','💊'],
+      ['感冒','🤧'],
+      ['流鼻血','🩸'],
+      ['狀況','🩺'],
+      ['時鐘','🕐'],
+      ['手錶','⌚'],
+      ['時間','⏰'],
+      ['週末','📅'],
+      ['下週','📅'],
+      ['明年','📅'],
+      ['下午','🕒'],
+      ['現在','⏰'],
+      ['朋友','👫'],
+      ['好友','👫'],
+      ['家人','👨‍👩‍👧'],
+      ['家族','👨‍👩‍👧'],
+      ['小孩','🧒'],
+      ['兒童','🧒'],
+      ['店員','🧑‍💼'],
+      ['姓氏','📛'],
+      ['書本','📖'],
+      ['書籍','📖'],
+      ['雜誌','📖'],
+      ['筆記本','📓'],
+      ['原子筆','✏️'],
+      ['鋼筆','✏️'],
+      ['眼鏡','👓'],
+      ['雨傘','☂️'],
+      ['陽傘','☂️'],
+      ['傘','☂️'],
+      ['帽子','🧢'],
+      ['鞋','👟'],
+      ['襯衫','👔'],
+      ['毛衣','🧥'],
+      ['口罩','😷'],
+      ['手帕','🧻'],
+      ['後背包','🎒'],
+      ['長褲','👖'],
+      ['包包','👜'],
+      ['錢','💴'],
+      ['金錢','💴'],
+      ['手機','📱'],
+      ['相機','📷'],
+      ['電話','📞'],
+      ['信件','✉️'],
+      ['書信','✉️'],
+      ['明信片','✉️'],
+      ['鑰匙','🔑'],
+      ['房卡','🔑'],
+      ['報紙','📰'],
+      ['地圖','🗺️'],
+      ['導航','🗺️'],
+      ['收據','🧾'],
+      ['發票','🧾'],
+      ['菜單','📋'],
+      ['作業','📝'],
+      ['功課','📝'],
+      ['書桌','🪑'],
+      ['窗','🪟'],
+      ['冰箱','🧊'],
+      ['蠟燭','🕯️'],
+      ['筷子','🥢'],
+      ['浴衣','👘'],
+      ['折扣','🏷️'],
+      ['免稅','🛃'],
+      ['含稅','🧾'],
+      ['多少錢','💰'],
+      ['結帳','🧾'],
+      ['買單','🧾'],
+      ['伴手禮','🎁'],
+      ['試穿','👔'],
+      ['收銀','🧾'],
+      ['購物','🛍️'],
+      ['紅色','🔴'],
+      ['藍色','🔵'],
+      ['白色','⚪'],
+      ['黑色','⚫'],
+      ['方便','👍'],
+      ['安靜','🤫'],
+      ['辛苦','😮‍💨'],
+      ['快樂','😊'],
+      ['有趣','😊'],
+      ['忘記','💭'],
+      ['尋找','🔍'],
+      ['趕','⏱️'],
+      ['起床','⏰'],
+      ['推薦','👍'],
+      ['預約','📅'],
+      ['外帶','🥡'],
+      ['持續','🔁'],
+      ['留學','🎓'],
+      ['入學','🎓'],
+      ['作業','📝'],
+      ['上課','📚'],
+      ['課','📚'],
+      ['露營','🏕️'],
+      ['游泳','🏊'],
+      ['高爾夫','⛳'],
+      ['遊戲','🎮'],
+      ['電影','🎬'],
+      ['音樂','🎵'],
+      ['吉他','🎸'],
+      ['慢跑','🏃'],
+      ['舞','💃'],
+      ['活動','🎉'],
+      ['外國','🌐'],
+      ['國外','🌐'],
+      ['護照','🛂'],
+      ['不在家','🏠'],
+      ['外出','🏠'],
+      ['玻璃','🪟']
+    ];
+    function wordEmoji(plainText, meaning, catKey) {
+      const hay = String(meaning || '') + ' ' + String(plainText || '').replace(/<[^>]*>/g, '');
+      for (const [kw, emoji] of EMOJI_RULES) {
+        if (hay.indexOf(kw) !== -1) return emoji;
+      }
+      return catKey ? catEmoji(catKey) : '🗾';
+    }
+
 
     /* ==========================================================================
        2. 50-KANA DATA WITH CONTEXTUAL MNEMONICS (WORD + IMAGE)
@@ -1319,14 +1560,9 @@
         };
       };
 
-      const getStrokeColor = () => {
-        if (STATE.brushColor === 'ink') {
-          return document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a';
-        } else if (STATE.brushColor === 'matcha') {
-          return '#16a34a';
-        }
-        return document.documentElement.classList.contains('dark') ? '#fb7185' : '#e11d48';
-      };
+      // 筆色固定黑色；深色模式下改白色以維持對比
+      const getStrokeColor = () =>
+        document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a';
 
       // Pointer Event Handlers for smooth stroke drawing on desktop and mobile touch
       canvas.addEventListener('pointerdown', (e) => {
@@ -1434,7 +1670,7 @@
       document.getElementById('mnemonicCategoryTag').textContent = m.cat;
       document.getElementById('mnemonicTip').textContent = `💡 ${m.tip}`;
 
-      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, '✏️');
+      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, wordEmoji(m.plain, m.meaning, null));
 
       // Audio triggers
       document.getElementById('btnPlayMnemonicAudio').onclick = () => playJapaneseAudio(m.plain);
@@ -2024,7 +2260,7 @@
       setCardImage(document.getElementById('fcImage'),
         STATE.recallMode ? '？' : current.plain,
         STATE.recallMode ? '先想想日語怎麼說' : current.meaning,
-        catEmoji(current.cat));
+        STATE.recallMode ? '❓' : wordEmoji(current.plain, current.meaning, current.cat));
 
       document.getElementById('fcWord').innerHTML = current.word;
       document.getElementById('fcRomaji').textContent = current.romaji;
@@ -3014,15 +3250,7 @@
         document.getElementById('kanaWritingStudio').classList.add('hidden');
       };
 
-      // Brush color
-      document.querySelectorAll('.brush-color-btn').forEach(b => {
-        b.onclick = () => {
-          document.querySelectorAll('.brush-color-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-rose-400', 'ring-slate-400', 'ring-emerald-400'));
-          STATE.brushColor = b.getAttribute('data-color');
-          const ringColor = STATE.brushColor === 'matcha' ? 'ring-emerald-400' : STATE.brushColor === 'ink' ? 'ring-slate-400' : 'ring-rose-400';
-          b.classList.add('ring-2', ringColor);
-        };
-      });
+      // 筆色固定黑色（深色模式為白），不再提供切換
 
       document.getElementById('btnStartKanaQuiz').onclick = startKanaQuiz;
       document.getElementById('btnCloseQuiz').onclick = () => {
