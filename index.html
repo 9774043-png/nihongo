@@ -236,32 +236,26 @@
           </div>
 
           <!-- RIGHT: High-Definition Mnemonic Vocabulary Card -->
-          <div class="bg-rose-50/50 dark:bg-slate-800/60 rounded-2xl p-4 border border-rose-200/60 dark:border-slate-700/60 flex flex-col justify-between space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300">
-                <i class="fa-solid fa-lightbulb mr-1"></i> 50音生活圖像聯想
-              </span>
-              <button id="btnPlayMnemonicAudio" class="w-9 h-9 rounded-full bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-rose-100 dark:border-slate-600 flex items-center justify-center hover:scale-105 active:scale-95 transition" title="聯想單字發音">
+          <div class="bg-rose-50/50 dark:bg-slate-800/60 rounded-2xl p-4 border border-rose-200/60 dark:border-slate-700/60 flex flex-col justify-center gap-3">
+            <!-- emoji 大圖置中，發音喇叭貼在右上角 -->
+            <div class="relative flex justify-center">
+              <div id="mnemonicEmoji" class="w-32 h-32 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center text-[5rem] leading-none shadow-sm select-none"></div>
+              <button id="btnPlayMnemonicAudio" class="absolute top-0 right-0 w-10 h-10 rounded-full bg-rose-500 text-white shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition" title="聯想單字發音">
                 <i class="fa-solid fa-volume-high text-lg"></i>
               </button>
             </div>
 
-            <!-- Mnemonic Emoji：淺底大圖示（文字見下方欄位） -->
-            <div id="mnemonicEmoji" class="w-28 h-28 mx-auto rounded-2xl bg-rose-50 dark:bg-slate-800 flex items-center justify-center text-7xl leading-none shadow-sm select-none"></div>
-
-            <!-- Mnemonic Word & Details -->
-            <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-rose-100 dark:border-slate-800 space-y-1">
-              <div class="flex items-baseline gap-2">
-                <div id="mnemonicWordJp" class="text-xl font-black text-slate-800 dark:text-white">
+            <!-- 白色詳情卡：N5 徽章置於右上角 -->
+            <div class="relative bg-white dark:bg-slate-900 p-3 rounded-xl border border-rose-100 dark:border-slate-800 space-y-1">
+              <span class="absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300">N5</span>
+              <div class="flex items-baseline gap-2 pr-10">
+                <div id="mnemonicWordJp" class="text-2xl font-black text-slate-800 dark:text-white">
                   <ruby>朝<rt>あさ</rt></ruby>
                 </div>
                 <div id="mnemonicRomaji" class="text-xs font-mono text-slate-400">asa</div>
               </div>
-              <div class="flex items-center justify-between">
-                <div id="mnemonicMeaning" class="text-sm font-bold text-rose-600 dark:text-rose-400">早晨、早上</div>
-                <div class="text-[10px] text-slate-400 font-mono">N5 必備單字</div>
-              </div>
-              <p id="mnemonicTip" class="text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 leading-snug">
+              <div id="mnemonicMeaning" class="text-sm font-bold text-rose-600 dark:text-rose-400">早晨、早上</div>
+              <p id="mnemonicTip" class="text-[11px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-800 leading-snug">
                 💡 記憶口訣：早晨（あさ）出門向陽光說「あ」。
               </p>
             </div>
