@@ -8,8 +8,7 @@
 ## 檔案結構
 
 ```
-index.html      主程式（單檔，含全部學習內容與邏輯）
-tailwind.css    自建樣式表（36KB，已取代 Tailwind CDN）
+index.html      主程式（單檔，已內含全部 CSS、學習內容與邏輯）
 manifest.json   PWA 設定：App 名稱、圖示、啟動方式
 sw.js           Service Worker：離線快取
 icons/          App 圖示（192 / 512 / maskable / apple-touch / favicon）
@@ -38,7 +37,7 @@ README.md       本說明
 在新 repo 的空白頁點 **「uploading an existing file」**，然後把以下項目一起拖進瀏覽器：
 
 ```
-index.html    tailwind.css    manifest.json    sw.js    README.md    icons/
+index.html    manifest.json    sw.js    README.md    icons/
 ```
 
 > ⚠️ **最容易出錯的一步**：要拖「本資料夾**裡面**的東西」，
@@ -123,11 +122,11 @@ git push -u origin main
 每次更新內容時，請修改 `sw.js` 的版本號：
 
 ```js
-const CACHE_VERSION = 'v1';   // 改成 'v2'、'v3'…
+const CACHE_VERSION = 'v6';   // 改成 'v7'、'v8'…
 ```
 
-若在 `index.html` 新增了 Tailwind class，`tailwind.css` 也需重新產生，
-否則新樣式不會生效。
+CSS 已內嵌在 `index.html` 裡，更新時只要覆蓋 `index.html`（與改了版本號的
+`sw.js`）即可，不必再單獨維護樣式檔。
 
 **學習進度存在各裝置本機**，手機與電腦的進度不互通，
 清除瀏覽器資料會消失。跨裝置同步需要接後端（例如 Firebase）。

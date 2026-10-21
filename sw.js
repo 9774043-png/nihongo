@@ -10,7 +10,7 @@
    改版時只要修改 CACHE_VERSION，舊快取就會在 activate 階段被清掉。
    ========================================================================== */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const SHELL_CACHE = `nihongo-shell-${CACHE_VERSION}`;
 const CDN_CACHE = `nihongo-cdn-${CACHE_VERSION}`;
 
@@ -18,7 +18,6 @@ const CDN_CACHE = `nihongo-cdn-${CACHE_VERSION}`;
 const SHELL_ASSETS = [
   './',
   './index.html',
-  './tailwind.css',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
