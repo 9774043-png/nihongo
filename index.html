@@ -1,0 +1,3235 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <!-- 移除 user-scalable=no：允許放大，對學漢字/假名字形很重要，也符合無障礙規範 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f43f5e">
+  <meta name="description" content="五十音手寫、圖解單字 SRS、N4 文法句型庫、實境會話模擬與口說跟讀評測。">
+  <!-- PWA：加到主畫面後以獨立 App 形式開啟 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="日語特訓所">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <title>日語特訓所 - N5/N4 沉浸視覺互動學習</title>
+  <!-- 深色模式先行套用，避免開啟瞬間閃白 (FOUC) -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('nihongo_theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <!-- 自建 Tailwind 樣式表（取代 cdn.tailwindcss.com：正式環境不應使用該 CDN，且離線無法運作） -->
+  <link rel="stylesheet" href="tailwind.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Yuji+Boku&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* iPhone 瀏海與底部 home indicator 的安全區 */
+    header { padding-top: calc(0.625rem + env(safe-area-inset-top)); }
+    nav.fixed { padding-bottom: env(safe-area-inset-bottom); }
+    main { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+    /* 只對互動元件停用選取；內文保持可複製，方便查字典 */
+    button, .nav-tab, #kanaGrid, #kanaCanvas, #canvasGuideChar {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* 日文區塊改用日文字型，避免中日漢字字形混用（温・直・骨 等差異） */
+    ruby, rt,
+    #studioKanaDisplay, #canvasGuideChar, #mnemonicWordJp, #quizTargetKana,
+    #fcWord, #fcBackWordSummary, #fcSentenceJp, #speechTargetJp,
+    #kanaGrid, .jp-text {
+      font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    }
+    ruby {
+      ruby-align: center;
+    }
+    rt {
+      font-size: 0.65em;
+      color: #e11d48;
+      user-select: none;
+    }
+    .dark rt {
+      color: #fb7185;
+    }
+    
+    /* 3D Flip Card Architecture with Robust Anti-Mirror */
+    .perspective-1000 {
+      perspective: 1000px;
+      -webkit-perspective: 1000px;
+    }
+    .card-flipper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+    .card-flipper.flipped {
+      transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden !important;
+      backface-visibility: hidden !important;
+      transform: rotateX(0deg);
+    }
+    .card-back {
+      transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
+    }
+
+    /* Rice-Grid (米字格) Vector Background */
+    .mizige-grid {
+      background-image: 
+        linear-gradient(to right, rgba(225, 29, 72, 0.18) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(225, 29, 72, 0.18) 1px, transparent 1px),
+        linear-gradient(45deg, transparent calc(50% - 0.75px), rgba(225, 29, 72, 0.15) 50%, transparent calc(50% + 0.75px)),
+        linear-gradient(-45deg, transparent calc(50% - 0.75px), rgba(225, 29, 72, 0.15) 50%, transparent calc(50% + 0.75px));
+      background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+      background-position: center;
+    }
+    .dark .mizige-grid {
+      background-image: 
+        linear-gradient(to right, rgba(251, 113, 133, 0.2) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(251, 113, 133, 0.2) 1px, transparent 1px),
+        linear-gradient(45deg, transparent calc(50% - 0.75px), rgba(251, 113, 133, 0.16) 50%, transparent calc(50% + 0.75px)),
+        linear-gradient(-45deg, transparent calc(50% - 0.75px), rgba(251, 113, 133, 0.16) 50%, transparent calc(50% + 0.75px));
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="h-full bg-sand-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <span class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sakura-500 to-rose-400 flex items-center justify-center text-white font-black text-sm shadow-md shadow-rose-200 dark:shadow-none">
+        日
+      </span>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-slate-800 dark:text-white flex items-center gap-1.5">
+          日語特訓所 <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300 font-bold">N5/N4 沉浸版</span>
+        </h1>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-1.5">
+      <!-- Dark Mode Switch -->
+      <button id="themeToggleBtn" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="外觀切換">
+        <i class="fa-solid fa-moon dark:hidden text-xs"></i>
+        <i class="fa-solid fa-sun hidden dark:inline text-xs"></i>
+      </button>
+      <!-- Audio Speed Controller -->
+      <button id="speechSpeedBtn" class="text-xs px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-medium text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+        <i class="fa-solid fa-gauge-high text-rose-500"></i>
+        <span id="speechRateLabel">1.0x</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Scrollable App Container -->
+  <main class="flex-1 overflow-y-auto pb-24 px-3 sm:px-4 pt-3 max-w-3xl mx-auto w-full">
+
+    <!-- ============================================================== -->
+    <!-- MODULE 1: 五十音特訓所 & 筆順練習 + 圖像單字聯想卡片           -->
+    <!-- ============================================================== -->
+    <section id="module-kana" class="tab-module space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800">
+            <button id="btnHiragana" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-rose-600 dark:text-rose-400 transition">平假名 (あ)</button>
+            <button id="btnKatakana" class="px-3.5 py-1 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-300 transition">片假名 (ア)</button>
+          </div>
+          <button id="btnStartKanaQuiz" class="text-xs bg-rose-500 hover:bg-rose-600 text-white font-semibold px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1 transition">
+            <i class="fa-solid fa-bolt"></i> 假名速測
+          </button>
+        </div>
+
+        <!-- Kana Type Filter -->
+        <div class="flex gap-1.5 overflow-x-auto no-scrollbar text-xs font-medium">
+          <button class="kana-filter-btn px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900" data-filter="seion" data-label="清音">清音</button>
+          <button class="kana-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-filter="dakuon" data-label="濁音・半濁音">濁音・半濁音</button>
+          <button class="kana-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" data-filter="yoon" data-label="拗音">拗音</button>
+        </div>
+      </div>
+
+      <!-- Kana Cards Grid -->
+      <div id="kanaGrid" class="grid grid-cols-5 gap-2 sm:gap-2.5"></div>
+
+      <!-- ======================================================== -->
+      <!-- 50音互動描寫手寫板 + 聯想單字情境卡片 (Writing Studio)   -->
+      <!-- ======================================================== -->
+      <div id="kanaWritingStudio" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-xl border-2 border-rose-200 dark:border-slate-800 space-y-4">
+        <!-- Studio Top Bar -->
+        <div class="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-3">
+            <span id="studioKanaDisplay" class="text-3xl font-black text-rose-600 dark:text-rose-400">あ</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="studioRomajiDisplay" class="text-base font-bold text-slate-800 dark:text-slate-100">a</span>
+                <span id="studioOriginDisplay" class="text-xs px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-300 font-medium">源自漢字：安</span>
+              </div>
+              <p class="text-[11px] text-slate-400">觸控或滑鼠在九宮格米字輔助線內練習筆順</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btnPlayStudioKanaAudio" class="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 flex items-center justify-center hover:scale-105 active:scale-95 transition" title="聆聽單音發音">
+              <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+            <button id="btnCloseWritingStudio" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center hover:bg-slate-200 transition" title="收起手寫板">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Studio Main Body: Grid Canvas (Left) + Mnemonic Word Card (Right) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          
+          <!-- LEFT: Writing Canvas with Mizige Grid & Guide Character -->
+          <div class="flex flex-col items-center space-y-3">
+            <div id="canvasContainer" class="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-rose-300 dark:border-rose-900/60 mizige-grid bg-white dark:bg-slate-950 touch-none shadow-inner">
+              <!-- Translucent background guide font (never gets cleared) -->
+              <div id="canvasGuideChar" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 dark:opacity-25 text-[150px] font-black text-rose-500 font-sans select-none">
+                あ
+              </div>
+              <!-- Real HTML5 Canvas for Stroke Drawing with pointer-events -->
+              <canvas id="kanaCanvas" class="absolute inset-0 w-full h-full block cursor-crosshair z-10 touch-none"></canvas>
+            </div>
+
+            <!-- Canvas Controls: Brush colour & clear -->
+            <div class="w-full max-w-[280px] flex items-center justify-between text-xs">
+              <!-- Brush Color -->
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] text-slate-400 font-semibold mr-1">筆色:</span>
+                <button class="brush-color-btn w-5 h-5 rounded-full bg-rose-600 ring-2 ring-rose-400 transition" data-color="sakura" title="櫻花紅"></button>
+                <button class="brush-color-btn w-5 h-5 rounded-full bg-slate-900 dark:bg-slate-100 transition" data-color="ink" title="水墨黑/白"></button>
+                <button class="brush-color-btn w-5 h-5 rounded-full bg-emerald-600 transition" data-color="matcha" title="抹茶綠"></button>
+              </div>
+
+              <!-- Clear Action -->
+              <button id="btnClearCanvas" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium text-[11px] flex items-center gap-1">
+                <i class="fa-solid fa-trash-can"></i> 重寫
+              </button>
+            </div>
+          </div>
+
+          <!-- RIGHT: High-Definition Mnemonic Vocabulary Card -->
+          <div class="bg-rose-50/50 dark:bg-slate-800/60 rounded-2xl p-4 border border-rose-200/60 dark:border-slate-700/60 flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300">
+                <i class="fa-solid fa-lightbulb mr-1"></i> 50音生活圖像聯想
+              </span>
+              <button id="btnPlayMnemonicAudio" class="text-xs px-2.5 py-1 rounded-xl bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-rose-100 dark:border-slate-600 flex items-center gap-1 hover:scale-105 active:scale-95 transition">
+                <i class="fa-solid fa-volume-high"></i>
+                <span class="font-bold">單字發音</span>
+              </button>
+            </div>
+
+            <!-- Mnemonic Context Image -->
+            <div class="relative w-full h-36 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 shadow-inner group">
+              <img id="mnemonicImg" src="" alt="聯想單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+              <div class="absolute bottom-2 left-3 right-3 flex justify-between items-end text-white text-[11px] font-medium drop-shadow-md">
+                <span id="mnemonicImgLabel"><i class="fa-solid fa-image mr-1 text-rose-400"></i>情境圖卡</span>
+                <span id="mnemonicCategoryTag" class="opacity-90">生活日常</span>
+              </div>
+            </div>
+
+            <!-- Mnemonic Word & Details -->
+            <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-rose-100 dark:border-slate-800 space-y-1">
+              <div class="flex items-baseline gap-2">
+                <div id="mnemonicWordJp" class="text-xl font-black text-slate-800 dark:text-white">
+                  <ruby>朝<rt>あさ</rt></ruby>
+                </div>
+                <div id="mnemonicRomaji" class="text-xs font-mono text-slate-400">asa</div>
+              </div>
+              <div class="flex items-center justify-between">
+                <div id="mnemonicMeaning" class="text-sm font-bold text-rose-600 dark:text-rose-400">早晨、早上</div>
+                <div class="text-[10px] text-slate-400 font-mono">N5 必備單字</div>
+              </div>
+              <p id="mnemonicTip" class="text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 leading-snug">
+                💡 記憶口訣：早晨（あさ）出門向陽光說「あ」。
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Quick Kana Quiz Modal -->
+      <div id="kanaQuizModal" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-rose-200 dark:border-slate-800 space-y-4">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-rose-500 tracking-wider uppercase">50 音快速音形測驗</span>
+          <button id="btnCloseQuiz" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="text-center py-2">
+          <p class="text-xs text-slate-400 mb-2">請問這個假名的發音羅馬字為？</p>
+          <div class="flex items-center justify-center gap-3">
+            <span id="quizTargetKana" class="text-6xl font-black text-slate-800 dark:text-white">す</span>
+            <button id="btnQuizPlayAudio" class="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 flex items-center justify-center">
+              <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+          </div>
+        </div>
+        <div id="quizOptionsGrid" class="grid grid-cols-2 gap-2"></div>
+        <div id="quizFeedback" class="text-center text-xs font-bold py-1 min-h-[20px]"></div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- MODULE 2: 多情境圖解單字庫與 SRS (Visual Vocab Flashcards)       -->
+    <!-- ============================================================== -->
+    <section id="module-vocab" class="tab-module hidden space-y-3.5">
+      <!-- Category & Level Selectors + Image Recall Mode Toggle -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-400">級別:</span>
+            <div class="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
+              <button class="vocab-level-btn px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 shadow-sm text-rose-600 dark:text-rose-300" data-level="all">全部</button>
+              <button class="vocab-level-btn px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300" data-level="N5">N5</button>
+              <button class="vocab-level-btn px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300" data-level="N4">N4</button>
+            </div>
+          </div>
+          
+          <!-- Image-First Recall Mode Toggle -->
+          <button id="btnToggleRecallMode" class="text-xs px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-eye-slash text-[11px]"></i>
+            <span id="recallModeLabel">主動回想: 關閉</span>
+          </button>
+        </div>
+
+        <!-- Multi-Category Horizontal Scroll with Dynamic Count Badges -->
+        <div id="vocabCategoryList" class="flex gap-1.5 overflow-x-auto no-scrollbar text-xs pb-0.5"></div>
+      </div>
+
+      <!-- Card Counter & Navigation Bar -->
+      <div class="flex items-center justify-between px-1 text-xs">
+        <span id="vocabCounter" class="text-slate-400 font-medium">卡片 1 / 18</span>
+        <div class="flex gap-2">
+          <button id="btnPrevCard" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50">
+            <i class="fa-solid fa-chevron-left text-[10px]"></i> 上一張
+          </button>
+          <button id="btnNextCard" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50">
+            下一張 <i class="fa-solid fa-chevron-right text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3D Flip Visual Card (Refined Height with 5:4 Photo Ratio) -->
+      <div class="perspective-1000 w-full h-[400px] sm:h-[420px]">
+        <div id="flashcardInner" class="card-flipper cursor-pointer shadow-md rounded-3xl">
+          
+          <!-- FRONT FACE (Visual Image + Japanese Character) -->
+          <div class="card-front p-4 sm:p-5 flex flex-col justify-between rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div class="flex justify-between items-center z-10">
+              <span id="fcTagLevel" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300 shadow-sm">
+                N5 • 超商
+              </span>
+              <button id="fcAudioFront" class="w-8 h-8 rounded-full bg-rose-50 dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition" onclick="event.stopPropagation()">
+                <i class="fa-solid fa-volume-high text-xs"></i>
+              </button>
+            </div>
+            
+            <!-- Centered 5:4 Aspect Ratio Flashcard Photo Frame -->
+            <div class="flex justify-center items-center my-auto py-1">
+              <div class="relative w-48 sm:w-56 aspect-[5/4] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-rose-100/80 dark:border-slate-700/80 shadow-md group">
+                <img id="fcImage" src="" alt="單字情境圖卡" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
+                <div class="absolute bottom-1.5 left-2.5 right-2.5 flex justify-between items-end text-white text-[10px] font-medium drop-shadow-md">
+                  <span id="fcVisualConceptTag"><i class="fa-solid fa-image mr-1 text-rose-400"></i>情境聯想</span>
+                  <span id="fcCardCategoryName" class="opacity-90">超商生活</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Japanese Word (Can be masked in Recall Mode) -->
+            <div class="text-center pb-1">
+              <div id="fcWordContainer" class="relative inline-block px-3 py-0.5">
+                <div id="fcWord" class="text-3xl sm:text-4xl font-black tracking-wide text-slate-800 dark:text-white mb-0.5">
+                  <ruby>温<rt>あたた</rt></ruby>めます
+                </div>
+                <p id="fcRomaji" class="text-xs font-mono font-medium text-slate-400">atatamemasu</p>
+                
+                <!-- Recall Mask Overlay -->
+                <div id="fcRecallMask" class="hidden absolute inset-0 bg-rose-50/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-xl border border-rose-300 dark:border-rose-900 flex flex-col items-center justify-center cursor-pointer shadow-sm">
+                  <i class="fa-solid fa-brain text-rose-500 text-base mb-1"></i>
+                  <span class="text-xs font-bold text-rose-600 dark:text-rose-400">點擊揭開日語寫法</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span class="text-[11px] text-rose-500 dark:text-rose-400 font-semibold inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-rotate-right"></i> 點擊卡片翻面看中文釋義與例句
+              </span>
+            </div>
+          </div>
+
+          <!-- BACK FACE (Meaning, Nuance, Sentence & Grammatical Notes - Unified Light Palette) -->
+          <div class="card-back p-4 sm:p-5 flex flex-col justify-between rounded-3xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+              <div class="flex items-center gap-2">
+                <span id="fcBackWordSummary" class="text-lg font-black text-rose-600 dark:text-rose-400">温めます</span>
+                <span id="fcWordType" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-medium">動詞 II組</span>
+              </div>
+              <button id="fcAudioBackWord" class="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 hover:scale-105 active:scale-95 transition flex items-center justify-center text-xs" onclick="event.stopPropagation()" title="單字發音">
+                <i class="fa-solid fa-volume-high"></i>
+              </button>
+            </div>
+
+            <div class="my-auto space-y-2.5">
+              <div>
+                <p class="text-[10px] text-slate-400 font-semibold mb-0.5">中文釋義與語感重點</p>
+                <p id="fcMeaning" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">加熱、微波加熱</p>
+                <p id="fcNuanceTip" class="text-xs text-rose-800 dark:text-rose-200 mt-1 leading-relaxed bg-rose-50/70 dark:bg-slate-800/80 p-2 rounded-xl border border-rose-100/80 dark:border-slate-700/60">
+                  💡 常用於超商結帳時店員詢問「要加熱嗎？」。
+                </p>
+              </div>
+
+              <!-- Contextual Example Sentence (Enlarged font, '實用例句' label removed for comfortable reading) -->
+              <div class="bg-slate-50 dark:bg-slate-800/60 p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 relative group">
+                <button id="fcSentenceAudio" class="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-slate-200/60 dark:border-slate-600 hover:scale-105 active:scale-95 transition flex items-center justify-center text-xs" onclick="event.stopPropagation()" title="例句朗讀">
+                  <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <div id="fcSentenceJp" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed pr-8">
+                  お弁当を温めますか？
+                </div>
+                <p id="fcSentenceZh" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium mt-1">
+                  需要幫您加熱便當嗎？
+                </p>
+              </div>
+            </div>
+
+            <div class="text-center pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span class="text-[11px] text-rose-500 dark:text-rose-400 font-semibold inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-rotate-right"></i> 點擊卡片翻回正面
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SRS Rating Actions -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800">
+        <p class="text-xs text-center text-slate-400 font-semibold mb-2">
+          記憶程度評估 (SRS 間隔重複)
+          <span id="srsDueBadge" class="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300 font-bold">待複習 0</span>
+        </p>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="srsBtnHard" class="py-2.5 px-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 text-xs font-bold hover:bg-red-100 transition flex flex-col items-center">
+            <span>生疏・重練</span>
+            <span class="text-[9px] font-normal opacity-70">10分鐘後再複習</span>
+          </button>
+          <button id="srsBtnGood" class="py-2.5 px-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 text-xs font-bold hover:bg-amber-100 transition flex flex-col items-center">
+            <span>熟悉・良好</span>
+            <span class="text-[9px] font-normal opacity-70">明天複習</span>
+          </button>
+          <button id="srsBtnEasy" class="py-2.5 px-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 text-xs font-bold hover:bg-emerald-100 transition flex flex-col items-center">
+            <span>已掌握・熟記</span>
+            <span class="text-[9px] font-normal opacity-70">3天後複習</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- MODULE 3: 看圖識詞 視覺聯想速測 (Visual Image Quiz Mode)         -->
+    <!-- ============================================================== -->
+    <section id="module-quiz" class="tab-module hidden space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+        <!-- Quiz Top Header: Streak & Score -->
+        <div class="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300">
+              圖卡識詞速測
+            </span>
+            <span id="quizStreakBadge" class="text-xs font-black text-amber-500 flex items-center gap-1">
+              <i class="fa-solid fa-fire"></i> 連勝: 0
+            </span>
+          </div>
+          <span id="quizTotalScore" class="text-xs font-bold text-slate-400">累積得分: 0</span>
+        </div>
+
+        <!-- Question Prompt Image -->
+        <div class="text-center space-y-2">
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">
+            請依下方圖卡的中文語意與情境，選出對應的日語單字：
+          </p>
+          <div class="relative w-full h-48 sm:h-60 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md">
+            <img id="quizQuestionImage" src="" alt="測驗情境圖卡" class="w-full h-full object-cover transition-opacity duration-300">
+            <div id="quizQuestionHintBadge" class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-white backdrop-blur-sm">
+              提示: 交通相關
+            </div>
+            <button id="btnQuizPlayTargetAudio" class="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white/90 dark:bg-slate-800/90 text-rose-600 dark:text-rose-400 shadow-md flex items-center justify-center">
+              <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Option Buttons Grid -->
+        <div id="quizOptionsContainer" class="grid grid-cols-2 gap-2.5"></div>
+
+        <!-- Real-time Feedback & Next Action Banner -->
+        <div id="quizActionBanner" class="hidden p-3 rounded-2xl border text-center transition-all space-y-2">
+          <p id="quizFeedbackMessage" class="text-xs font-bold"></p>
+          <button id="btnNextQuizQuestion" class="px-5 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-black hover:opacity-90 shadow-md">
+            下一題 <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- MODULE 4: 實境會話模擬器 (Situational Branching Dialogue)        -->
+    <!-- ============================================================== -->
+    <section id="module-dialogue" class="tab-module hidden space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">選擇實境任務劇本</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="scenario-btn active p-2.5 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-left transition" data-scenario="conbini">
+            <div class="text-lg mb-1">🏪</div>
+            <div class="text-xs font-bold text-rose-700 dark:text-rose-300">便利商店</div>
+            <div class="text-[10px] text-slate-400">微波加熱與袋子</div>
+          </button>
+          <button class="scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition" data-scenario="ramen">
+            <div class="text-lg mb-1">🍜</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">拉麵店客製</div>
+            <div class="text-[10px] text-slate-400">食券與硬度選擇</div>
+          </button>
+          <button class="scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition" data-scenario="hotel">
+            <div class="text-lg mb-1">🏨</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">飯店寄行李</div>
+            <div class="text-[10px] text-slate-400">て形與許可請求</div>
+          </button>
+          <button class="scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition" data-scenario="station">
+            <div class="text-lg mb-1">🚉</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">車站問路轉乘</div>
+            <div class="text-[10px] text-slate-400">方向指示與疑問詞</div>
+          </button>
+          <button class="scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition" data-scenario="drug">
+            <div class="text-lg mb-1">💊</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">藥妝店買藥</div>
+            <div class="text-[10px] text-slate-400">症狀表達與免稅</div>
+          </button>
+          <button class="scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition" data-scenario="izakaya">
+            <div class="text-lg mb-1">🍶</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">居酒屋訂位</div>
+            <div class="text-[10px] text-slate-400">電話預約與數量詞</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-[400px]">
+        <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="activeScenarioTitle" class="text-xs font-bold text-slate-800 dark:text-slate-200">便利商店：櫃檯結帳與加熱</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="toggleFuriganaBtn" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">假名: 開</button>
+            <button id="toggleZhBtn" class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">翻譯: 開</button>
+          </div>
+        </div>
+
+        <div id="dialogueContainer" class="flex-1 overflow-y-auto space-y-3 py-3 pr-1"></div>
+        <div id="dialogueChoices" class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2"></div>
+      </div>
+
+      <div id="grammarCalloutCard" class="bg-gradient-to-r from-rose-50 to-amber-50 dark:from-slate-900 dark:to-slate-800/80 p-3.5 rounded-2xl border border-rose-200 dark:border-slate-700">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-rose-600 text-white font-bold">N5/N4 文法焦點</span>
+          <span id="grammarPointTitle" class="text-xs font-bold text-slate-800 dark:text-slate-200">〜て形 + ください (請求)</span>
+        </div>
+        <p id="grammarPointDesc" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+          用於日常禮貌請求店員或他人協助。例如「温めてください」（請幫我加熱）、「袋に入れてください」（請幫我裝袋）。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!-- MODULE 5: 口說發音跟讀評測 (Pronunciation Practice)            -->
+    <!-- ============================================================== -->
+    <!-- ============================================================== -->
+    <!-- MODULE 6: N4 文法句型庫與文法小測 (Grammar Bank)                -->
+    <!-- ============================================================== -->
+    <section id="module-grammar" class="tab-module hidden space-y-3.5">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">N4 文法句型庫</span>
+            <span id="grammarProgressLabel" class="text-[11px] text-slate-400 font-medium">已掌握 0 / 0</span>
+          </div>
+          <button id="btnGrammarQuiz" class="text-xs bg-rose-500 hover:bg-rose-600 text-white font-semibold px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1 transition">
+            <i class="fa-solid fa-pen-to-square"></i> 文法小測
+          </button>
+        </div>
+
+        <input id="grammarSearch" type="search" placeholder="搜尋句型、中文意思或關鍵字…"
+          class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300">
+
+        <div id="grammarCatList" class="flex gap-1.5 overflow-x-auto no-scrollbar text-xs pb-0.5"></div>
+      </div>
+
+      <!-- 文法小測面板 -->
+      <div id="grammarQuizPanel" class="hidden bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-rose-200 dark:border-slate-800 space-y-4">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-rose-500 tracking-wider">文法填空小測</span>
+          <div class="flex items-center gap-2">
+            <span id="grammarQuizScore" class="text-[11px] font-bold text-slate-400">0 / 0</span>
+            <button id="btnCloseGrammarQuiz" class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div class="text-center py-1 space-y-1.5">
+          <div id="gqSentence" class="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-relaxed jp-text"></div>
+          <p id="gqZh" class="text-xs text-slate-500 dark:text-slate-400"></p>
+        </div>
+        <div id="gqOptions" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        <div id="gqFeedback" class="hidden p-3 rounded-2xl border text-left space-y-2">
+          <p id="gqExplain" class="text-xs font-medium leading-relaxed"></p>
+          <button id="btnNextGrammarQ" class="w-full py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-black hover:opacity-90">
+            下一題 <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="grammarList" class="space-y-2.5"></div>
+      <p id="grammarEmpty" class="hidden text-center text-xs text-slate-400 py-6">找不到相符的句型，換個關鍵字試試。</p>
+    </section>
+
+    <section id="module-speech" class="tab-module hidden space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+            N4 實戰口語跟讀
+          </span>
+          <button id="btnNextSpeechSentence" class="text-xs text-rose-500 font-semibold hover:underline flex items-center gap-1">
+            下一句 <i class="fa-solid fa-chevron-right text-[10px]"></i>
+          </button>
+        </div>
+
+        <div class="text-center py-2 space-y-1.5">
+          <div id="speechTargetJp" class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white leading-relaxed">
+            <ruby>袋<rt>ふくろ</rt></ruby>は<ruby>結構<rt>けっこう</rt></ruby>です。
+          </div>
+          <p id="speechTargetRomaji" class="text-xs font-mono text-slate-400">fukuro wa kekkou desu</p>
+          <p id="speechTargetZh" class="text-sm font-medium text-slate-600 dark:text-slate-300">不用袋子，謝謝。</p>
+        </div>
+
+        <div class="flex justify-center">
+          <button id="btnPlayReferenceAudio" class="px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 transition">
+            <i class="fa-solid fa-volume-high text-rose-500"></i> 聆聽標準真人示範
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 text-center space-y-4">
+        <div class="relative inline-block">
+          <button id="btnRecordMic" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white text-2xl flex items-center justify-center shadow-lg shadow-rose-200 dark:shadow-rose-950 transition duration-200">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <span id="recordingPulseRing" class="hidden absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-40"></span>
+        </div>
+
+        <div>
+          <p id="recordingStatusText" class="text-xs font-bold text-slate-500 dark:text-slate-400">
+            點擊麥克風後開始唸出上方日語
+          </p>
+          <p class="text-[10px] text-slate-400 mt-0.5">調用原生 Web Speech Recognition ('ja-JP')</p>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-950/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-left space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400 font-semibold">語音辨識結果:</span>
+            <span id="matchScoreBadge" class="hidden px-2.5 py-0.5 rounded-full font-bold text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">95分 (優)</span>
+          </div>
+          <p id="recognizedTranscript" class="text-base font-bold text-slate-800 dark:text-slate-100 min-h-[26px]">
+            尚未開始錄音...
+          </p>
+          
+          <div id="diffContainer" class="hidden pt-2 border-t border-slate-200 dark:border-slate-800">
+            <p class="text-[11px] text-slate-400 mb-1">字符逐字比對：</p>
+            <div id="diffCharChips" class="flex flex-wrap gap-1 text-xs font-mono"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom App Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 max-w-2xl mx-auto">
+    <div class="grid grid-cols-6 h-16">
+      <button class="nav-tab active flex flex-col items-center justify-center text-rose-500 dark:text-rose-400 transition" data-target="module-kana">
+        <i class="fa-solid fa-shapes text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">50音</span>
+      </button>
+      <button class="nav-tab flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" data-target="module-vocab">
+        <i class="fa-solid fa-images text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">圖解單字</span>
+      </button>
+      <button class="nav-tab flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" data-target="module-quiz">
+        <i class="fa-solid fa-circle-question text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">圖卡速測</span>
+      </button>
+      <button class="nav-tab flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" data-target="module-dialogue">
+        <i class="fa-solid fa-comments text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">實境會話</span>
+      </button>
+      <button class="nav-tab flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" data-target="module-grammar">
+        <i class="fa-solid fa-book-open text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">N4文法</span>
+      </button>
+      <button class="nav-tab flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition" data-target="module-speech">
+        <i class="fa-solid fa-microphone-lines text-base mb-0.5"></i>
+        <span class="text-[10px] font-bold">口說跟讀</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Toast Notification Bar -->
+  <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold px-4 py-2 rounded-full shadow-xl transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-2">
+    提示訊息
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. GLOBAL STATE & UTILITIES
+       ========================================================================== */
+    const STATE = {
+      theme: localStorage.getItem('nihongo_theme') || 'light',
+      speechRate: parseFloat(localStorage.getItem('nihongo_speech_rate')) || 1.0,
+      activeTab: 'module-kana',
+      // Kana module
+      kanaType: 'hiragana',
+      kanaFilter: 'seion',
+      selectedKana: null,
+      brushSize: 8, // 固定筆寬（原本的 S/M/L 切換已移除）
+      brushColor: 'sakura',
+      isDrawing: false,
+      lastPoint: null,
+      // Vocab module
+      vocabLevel: 'all',
+      vocabCat: 'all',
+      vocabIndex: 0,
+      isCardFlipped: false,
+      recallMode: false,
+      srsStats: JSON.parse(localStorage.getItem('nihongo_srs_stats') || '{}'),
+      // Visual Quiz module
+      quizStreak: 0,
+      quizScore: 0,
+      currentQuizTarget: null,
+      isAnswered: false,
+      // Dialogue module
+      currentScenarioKey: 'conbini',
+      dialogueStep: 0,
+      showFurigana: true,
+      showZh: true,
+      // Speech module
+      currentSpeechIndex: 0,
+      isRecording: false,
+    };
+
+    const CATEGORIES = [
+      { key: 'all', name: '全部情境', icon: '🌟' },
+      { key: 'conv', name: '超商生活', icon: '🏪' },
+      { key: 'transit', name: '交通出行', icon: '🚆' },
+      { key: 'food', name: '餐廳點餐', icon: '🍜' },
+      { key: 'hotel', name: '飯店住宿', icon: '🏨' },
+      { key: 'numbers', name: '數字金錢', icon: '💴' },
+      { key: 'colors', name: '顏色外觀', icon: '🎨' },
+      { key: 'weather', name: '日常天氣', icon: '⛅' },
+      { key: 'health', name: '身體健康', icon: '💊' },
+      { key: 'time', name: '時間日期', icon: '⏰' },
+      { key: 'shop', name: '購物藥妝', icon: '🛍️' },
+      { key: 'daily', name: '日常動作', icon: '🏠' },
+      { key: 'people', name: '人物家族', icon: '👨‍👩‍👧' },
+      { key: 'adj', name: '形容描述', icon: '✨' }
+    ];
+
+    let toastTimer = null;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.textContent = text;
+      toast.classList.remove('opacity-0', '-translate-y-2', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toastTimer); // 連續觸發時重新計時，避免前一則把後一則提早關掉
+      toastTimer = setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2', 'pointer-events-none');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2000);
+    }
+
+    /**
+     * 去除 ruby 標記，只留下實際要唸的文字。
+     * 關鍵修正：必須先刪掉 <rt>…</rt> 的注音內容，否則
+     * 「<ruby>温<rt>あたた</rt></ruby>めます」會被唸成「温あたためます」。
+     */
+    function toSpeakableText(html) {
+      return String(html)
+        .replace(/<rp>[\s\S]*?<\/rp>/gi, '')
+        .replace(/<rt>[\s\S]*?<\/rt>/gi, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    let cachedJaVoice = null;
+    function pickJapaneseVoice() {
+      const voices = window.speechSynthesis.getVoices() || [];
+      cachedJaVoice = voices.find(v => /^ja/i.test(v.lang) || /ja[-_]JP/i.test(v.lang)) || null;
+      return cachedJaVoice;
+    }
+
+    function playJapaneseAudio(text) {
+      if (!('speechSynthesis' in window)) {
+        showToast('您的瀏覽器不支援 Web Speech 語音合成');
+        return;
+      }
+      const cleanText = toSpeakableText(text);
+      if (!cleanText) return;
+
+      window.speechSynthesis.cancel();
+      // Chrome 在 cancel() 之後偶爾會停在 paused 狀態，導致之後完全沒聲音
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'ja-JP';
+      utterance.rate = STATE.speechRate;
+
+      const jaVoice = cachedJaVoice || pickJapaneseVoice();
+      if (jaVoice) utterance.voice = jaVoice;
+
+      // 首次呼叫時語音清單常常還沒載入，延後一拍再唸，避免變成中文腔
+      if (!jaVoice && (window.speechSynthesis.getVoices() || []).length === 0) {
+        window.speechSynthesis.addEventListener('voiceschanged', function once() {
+          window.speechSynthesis.removeEventListener('voiceschanged', once);
+          const v = pickJapaneseVoice();
+          if (v) utterance.voice = v;
+          window.speechSynthesis.speak(utterance);
+        });
+        return;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+
+    /* ==========================================================================
+       情境圖卡：全部由本地即時生成 SVG，不依賴任何外部圖片服務，
+       離線也一定有畫面（原本的 Unsplash 固定 ID 網址已全數移除）。
+       ========================================================================== */
+    const PLACEHOLDER_ACCENTS = ['#e11d48', '#0f766e', '#7c3aed', '#b45309', '#1d4ed8', '#be123c'];
+
+    function placeholderImage(mainText, subText, emoji) {
+      const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const main = esc(mainText || '？');
+      const sub = esc(subText || '');
+      const icon = esc(emoji || '');
+      let h = 0;
+      for (const ch of String(mainText || '') + String(subText || '')) h = (h * 31 + ch.codePointAt(0)) % 997;
+      const accent = PLACEHOLDER_ACCENTS[h % PLACEHOLDER_ACCENTS.length];
+      const plain = String(mainText || '').replace(/<[^>]*>/g, '');
+      const size = plain.length > 8 ? 44 : plain.length > 5 ? 58 : 80;
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400">' +
+          '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+            '<stop offset="0" stop-color="' + accent + '"/>' +
+            '<stop offset="1" stop-color="#0f172a"/>' +
+          '</linearGradient></defs>' +
+          '<rect width="500" height="400" fill="url(#g)"/>' +
+          '<circle cx="440" cy="54" r="120" fill="#ffffff" opacity="0.08"/>' +
+          '<circle cx="60" cy="350" r="95" fill="#ffffff" opacity="0.06"/>' +
+          (icon ? '<text x="250" y="150" text-anchor="middle" font-size="96">' + icon + '</text>' : '') +
+          '<text x="250" y="' + (icon ? 255 : 215) + '" text-anchor="middle" fill="#ffffff" font-weight="700" ' +
+            'font-family="Noto Sans JP, Hiragino Sans, sans-serif" font-size="' + size + '">' + main + '</text>' +
+          '<text x="250" y="' + (icon ? 310 : 272) + '" text-anchor="middle" fill="#ffffff" opacity="0.78" ' +
+            'font-family="system-ui, sans-serif" font-size="24">' + sub + '</text>' +
+        '</svg>';
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    // 直接套用本地圖卡（不再有外部請求，也就沒有載入失敗的灰白方塊）
+    function setCardImage(imgEl, mainText, subText, emoji) {
+      if (!imgEl) return;
+      imgEl.src = placeholderImage(mainText, subText, emoji);
+    }
+
+    function catEmoji(catKey) {
+      const c = CATEGORIES.find(x => x.key === catKey);
+      return c ? c.icon : '🗾';
+    }
+
+    /* ==========================================================================
+       2. 50-KANA DATA WITH CONTEXTUAL MNEMONICS (WORD + IMAGE)
+       ========================================================================== */
+    const KANA_DATA = {
+      hiragana: {
+        seion: [
+          { 
+            char: 'あ', romaji: 'a', hint: '安的草書',
+            mnemonic: { word: '<ruby>朝<rt>あさ</rt></ruby>', plain: '朝', romaji: 'asa', meaning: '早晨、早上', cat: '生活日常', tip: '早晨（あさ）向晨曦深呼吸說「あ」。' }
+          },
+          { 
+            char: 'い', romaji: 'i', hint: '以的左旁',
+            mnemonic: { word: '<ruby>犬<rt>いぬ</rt></ruby>', plain: '犬', romaji: 'inu', meaning: '狗、小狗', cat: '動物寵物', tip: '兩隻柴犬可愛地豎起耳朵發「い」的音。' }
+          },
+          { 
+            char: 'う', romaji: 'u', hint: '宇的草書',
+            mnemonic: { word: '<ruby>海<rt>うみ</rt></ruby>', plain: '海', romaji: 'umi', meaning: '大海、海邊', cat: '自然風光', tip: '蔚藍大海（うみ）波浪捲起如字母「う」。' }
+          },
+          { 
+            char: 'え', romaji: 'e', hint: '衣的草書',
+            mnemonic: { word: '<ruby>駅<rt>えき</rt></ruby>', plain: '駅', romaji: 'eki', meaning: '車站、電車站', cat: '交通出遊', tip: '抵達電車車站（えき），人潮走上月台。' }
+          },
+          { 
+            char: 'お', romaji: 'o', hint: '於的草書',
+            mnemonic: { word: 'お<ruby>茶<rt>ちゃ</rt></ruby>', plain: 'お茶', romaji: 'ocha', meaning: '茶、綠茶', cat: '飲食文化', tip: '恭敬雙手奉上一碗香醇日式熱抹茶（お茶）。' }
+          },
+          { 
+            char: 'か', romaji: 'ka', hint: '加的偏旁',
+            mnemonic: { word: '<ruby>傘<rt>かさ</rt></ruby>', plain: '傘', romaji: 'kasa', meaning: '雨傘、陽傘', cat: '生活日常', tip: '下雨天撐起漂亮雨傘（かさ），頂部如「か」。' }
+          },
+          { 
+            char: 'き', romaji: 'ki', hint: '幾的草書',
+            mnemonic: { word: '<ruby>切符<rt>きっぷ</rt></ruby>', plain: '切符', romaji: 'kippu', meaning: '車票、乘車券', cat: '交通旅行', tip: '在自動購票機握住通往未來的車票（きっぷ）。' }
+          },
+          { 
+            char: 'く', romaji: 'ku', hint: '久的草書',
+            mnemonic: { word: '<ruby>車<rt>くるま</rt></ruby>', plain: '車', romaji: 'kuruma', meaning: '汽車、車輛', cat: '交通出行', tip: '道路上奔馳的汽車（くるま），弧度似「く」。' }
+          },
+          { 
+            char: 'け', romaji: 'ke', hint: '計的草書',
+            mnemonic: { word: '<ruby>景色<rt>けしき</rt></ruby>', plain: '景色', romaji: 'keshiki', meaning: '景色、風景', cat: '自然觀光', tip: '登高望遠看見壯麗的富士山景色（けしき）。' }
+          },
+          { 
+            char: 'こ', romaji: 'ko', hint: '己的草書',
+            mnemonic: { word: '<ruby>子供<rt>こども</rt></ruby>', plain: '子供', romaji: 'kodomo', meaning: '小孩、兒童', cat: '人際家庭', tip: '兩劃如孩童張開雙手擁抱（こども）。' }
+          },
+          { 
+            char: 'さ', romaji: 'sa', hint: '左的草書',
+            mnemonic: { word: '<ruby>魚<rt>さかな</rt></ruby>', plain: '魚', romaji: 'sakana', meaning: '魚、鮮魚', cat: '美食海鮮', tip: '在築地市場品嚐肥美的新鮮游魚（さかな）。' }
+          },
+          { 
+            char: 'し', romaji: 'shi', hint: '之的草書',
+            mnemonic: { word: '<ruby>塩<rt>しお</rt></ruby>', plain: '塩', romaji: 'shio', meaning: '鹽巴、食鹽', cat: '調味飲食', tip: '一劃如晶瑩剔透的調味鹽勺（しお）。' }
+          },
+          { 
+            char: 'す', romaji: 'su', hint: '寸的草書',
+            mnemonic: { word: '<ruby>寿司<rt>すし</rt></ruby>', plain: '寿司', romaji: 'sushi', meaning: '壽司', cat: '經典美食', tip: '旋轉壽司台上的鮪魚握壽司（すし）。' }
+          },
+          { 
+            char: 'せ', romaji: 'se', hint: '世的草書',
+            mnemonic: { word: '<ruby>世界<rt>せかい</rt></ruby>', plain: '世界', romaji: 'sekai', meaning: '世界', cat: '人文地理', tip: '從世的草書而來，象徵廣袤的世界（せかい）。' }
+          },
+          { 
+            char: 'そ', romaji: 'so', hint: '曾的草書',
+            mnemonic: { word: '<ruby>空<rt>そら</rt></ruby>', plain: '空', romaji: 'sora', meaning: '天空', cat: '自然風景', tip: '仰望萬里無雲的晴朗藍天（そら）。' }
+          },
+          { 
+            char: 'た', romaji: 'ta', hint: '太的草書',
+            mnemonic: { word: '<ruby>卵<rt>たまご</rt></ruby>', plain: '卵', romaji: 'tamago', meaning: '雞蛋、玉子', cat: '食材料理', tip: '新鮮現煎的金色日式玉子燒（たまご）。' }
+          },
+          { 
+            char: 'ち', romaji: 'chi', hint: '知的草書',
+            mnemonic: { word: '<ruby>地下鉄<rt>ちかてつ</rt></ruby>', plain: '地下鉄', romaji: 'chikatetsu', meaning: '地鐵、捷運', cat: '交通移動', tip: '在東京穿梭地底的便捷地下鐵（ちかてつ）。' }
+          },
+          { 
+            char: 'つ', romaji: 'tsu', hint: '川的草書',
+            mnemonic: { word: '<ruby>机<rt>つくえ</rt></ruby>', plain: '机', romaji: 'tsukue', meaning: '書桌、辦公桌', cat: '居家生活', tip: '靜心坐在書桌（つくえ）前溫習日語。' }
+          },
+          { 
+            char: 'て', romaji: 'te', hint: '天的草書',
+            mnemonic: { word: '<ruby>手紙<rt>てがみ</rt></ruby>', plain: '手紙', romaji: 'tegami', meaning: '信件、書信', cat: '交流傳遞', tip: '提筆手寫一張滿懷心意的明信片與信件（てがみ）。' }
+          },
+          { 
+            char: 'と', romaji: 'to', hint: '止的草書',
+            mnemonic: { word: '<ruby>時計<rt>とけい</rt></ruby>', plain: '時計', romaji: 'tokei', meaning: '時鐘、手錶', cat: '時間日常', tip: '掛在牆面上滴答行走的鐘錶（とけい）。' }
+          },
+          { 
+            char: 'な', romaji: 'na', hint: '奈的草書',
+            mnemonic: { word: '<ruby>夏<rt>なつ</rt></ruby>', plain: '夏', romaji: 'natsu', meaning: '夏天、夏季', cat: '四季天氣', tip: '盛夏祭典綻放的向日葵與花火（なつ）。' }
+          },
+          { 
+            char: 'に', romaji: 'ni', hint: '仁的草書',
+            mnemonic: { word: '<ruby>肉<rt>にく</rt></ruby>', plain: '肉', romaji: 'niku', meaning: '肉、和牛', cat: '美食料理', tip: '烤肉鐵網上滋滋作響的頂級和牛肉（にく）。' }
+          },
+          { 
+            char: 'ぬ', romaji: 'nu', hint: '奴的草書',
+            mnemonic: { word: '<ruby>温<rt>ぬる</rt></ruby>い', plain: '温い', romaji: 'nurui', meaning: '溫溫的、微溫', cat: '感知形容', tip: '微溫的水溫（ぬるい湯），適合舒緩泡湯。' }
+          },
+          { 
+            char: 'ね', romaji: 'ne', hint: '禰的草書',
+            mnemonic: { word: '<ruby>猫<rt>ねこ</rt></ruby>', plain: '猫', romaji: 'neko', meaning: '貓咪', cat: '動物萌寵', tip: '神社前在午後陽光下伸懶腰的白貓（ねこ）。' }
+          },
+          { 
+            char: 'の', romaji: 'no', hint: '乃的草書',
+            mnemonic: { word: '<ruby>飲<rt>の</rt></ruby>み<ruby>物<rt>もの</rt></ruby>', plain: '飲み物', romaji: 'nomimono', meaning: '飲料、飲品', cat: '超商餐飲', tip: '一筆圓圈如同杯口，在自動販賣機買飲料（飲み物）。' }
+          },
+          { 
+            char: 'は', romaji: 'ha', hint: '波的草書',
+            mnemonic: { word: '<ruby>花<rt>はな</rt></ruby>', plain: '花', romaji: 'hana', meaning: '花朵、櫻花', cat: '植物美景', tip: '春天盛開的粉嫩櫻花（はな），飄落花瓣。' }
+          },
+          { 
+            char: 'ひ', romaji: 'hi', hint: '比的草書',
+            mnemonic: { word: '<ruby>飛行機<rt>ひこうき</rt></ruby>', plain: '飛行機', romaji: 'hikouki', meaning: '飛機', cat: '交通航空', tip: '弧形如同飛機滑行起飛昇空的軌跡（ひこうき）。' }
+          },
+          { 
+            char: 'ふ', romaji: 'fu', hint: '不的草書',
+            mnemonic: { word: '<ruby>富士山<rt>ふじさん</rt></ruby>', plain: '富士山', romaji: 'fujisan', meaning: '富士山', cat: '日本地標', tip: '頂峰覆雪的日本精神象徵——富士山（ふじさん）。' }
+          },
+          { 
+            char: 'へ', romaji: 'he', hint: '部的草書',
+            mnemonic: { word: '<ruby>部屋<rt>へや</rt></ruby>', plain: '部屋', romaji: 'heya', meaning: '房間、客房', cat: '飯店居住', tip: '一劃像山形屋頂，日式溫馨的榻榻米房間（へや）。' }
+          },
+          { 
+            char: 'ほ', romaji: 'ho', hint: '保的草書',
+            mnemonic: { word: '<ruby>本<rt>ほん</rt></ruby>', plain: '本', romaji: 'hon', meaning: '書本、書籍', cat: '文具學習', tip: '翻閱書頁散發墨香的日語文庫本（ほん）。' }
+          },
+          { 
+            char: 'ま', romaji: 'ma', hint: '末的草書',
+            mnemonic: { word: '<ruby>窓<rt>まど</rt></ruby>', plain: '窓', romaji: 'mado', meaning: '窗戶、車窗', cat: '居家交通', tip: '打開列車窗戶（まど），迎面拂來微風。' }
+          },
+          { 
+            char: 'み', romaji: 'mi', hint: '美的草書',
+            mnemonic: { word: 'お<ruby>水<rt>みず</rt></ruby>', plain: 'お水', romaji: 'omizu', meaning: '開水、冰水', cat: '餐飲生活', tip: '餐廳端上沁涼解渴的一杯冰開水（お水）。' }
+          },
+          { 
+            char: 'む', romaji: 'mu', hint: '武的草書',
+            mnemonic: { word: '<ruby>虫<rt>むし</rt></ruby>', plain: '虫', romaji: 'mushi', meaning: '昆蟲', cat: '大自然', tip: '夏日林間鳴叫的蟬鳴與小昆蟲（むし）。' }
+          },
+          { 
+            char: 'め', romaji: 'me', hint: '女的草書',
+            mnemonic: { word: '<ruby>眼鏡<rt>めがね</rt></ruby>', plain: '眼鏡', romaji: 'megane', meaning: '眼鏡', cat: '生活隨身', tip: '圓弧弧度猶如鏡框鏡片，戴上眼鏡（めがね）。' }
+          },
+          { 
+            char: 'も', romaji: 'mo', hint: '毛的草書',
+            mnemonic: { word: '<ruby>森<rt>もり</rt></ruby>', plain: '森', romaji: 'mori', meaning: '森林', cat: '自然生態', tip: '三木成森，漫步於綠意盎然的幽靜森林（もり）。' }
+          },
+          { 
+            char: 'や', romaji: 'ya', hint: '也的草書',
+            mnemonic: { word: '<ruby>山<rt>やま</rt></ruby>', plain: '山', romaji: 'yama', meaning: '山丘、高山', cat: '地理風景', tip: '巍峨矗立的群山山脈（やま）。' }
+          },
+          { char: '', romaji: '', empty: true },
+          { 
+            char: 'ゆ', romaji: 'yu', hint: '由的草書',
+            mnemonic: { word: '<ruby>雪<rt>ゆき</rt></ruby>', plain: '雪', romaji: 'yuki', meaning: '白雪、下雪', cat: '冬季天氣', tip: '北海道漫天飛舞、銀裝素裹的純白雪花（ゆき）。' }
+          },
+          { char: '', romaji: '', empty: true },
+          { 
+            char: 'よ', romaji: 'yo', hint: '與的草書',
+            mnemonic: { word: '<ruby>夜<rt>よる</rt></ruby>', plain: '夜', romaji: 'yoru', meaning: '夜晚、夜間', cat: '時間光影', tip: '東京繁華璀璨、燈火闌珊的浪漫夜晚（よる）。' }
+          },
+          { 
+            char: 'ら', romaji: 'ra', hint: '良的草書',
+            mnemonic: { word: '<ruby>来年<rt>らいねん</rt></ruby>', plain: '来年', romaji: 'rainen', meaning: '明年', cat: '時間日期', tip: '立下目標：「来年、日本へ行きます」（明年要去日本）。' }
+          },
+          { 
+            char: 'り', romaji: 'ri', hint: '利的草書',
+            mnemonic: { word: 'りんご', plain: 'りんご', romaji: 'ringo', meaning: '蘋果', cat: '美味水果', tip: '青森直送、鮮脆甜美的紅蘋果（りんご）。' }
+          },
+          { 
+            char: 'る', romaji: 'ru', hint: '留的草書',
+            mnemonic: { word: '<ruby>留守<rt>るす</rt></ruby>', plain: '留守', romaji: 'rusu', meaning: '不在家、外出', cat: '生活狀態', tip: '末尾圓圈像門鎖扣起，主人不在家外出留守（るす）。' }
+          },
+          { 
+            char: 'れ', romaji: 're', hint: '禮的草書',
+            mnemonic: { word: '<ruby>冷蔵庫<rt>れいぞうこ</rt></ruby>', plain: '冷蔵庫', romaji: 'reizouko', meaning: '冰箱', cat: '家電廚房', tip: '打開保鮮食材與冰飲的廚房大冰箱（れいぞうこ）。' }
+          },
+          { 
+            char: 'ろ', romaji: 'ro', hint: '呂的草書',
+            mnemonic: { word: '<ruby>蝋燭<rt>ろうそく</rt></ruby>', plain: '蝋燭', romaji: 'rousoku', meaning: '蠟燭', cat: '溫暖生活', tip: '搖曳生姿、給人安定溫暖的燭光（ろうそく）。' }
+          },
+          { 
+            char: 'わ', romaji: 'wa', hint: '和的草書',
+            mnemonic: { word: '<ruby>私<rt>わたし</rt></ruby>', plain: '私', romaji: 'watashi', meaning: '我、自己', cat: '基礎稱謂', tip: '自我介紹第一句：「私は...です」（我是...）。' }
+          },
+          { char: '', romaji: '', empty: true }, { char: '', romaji: '', empty: true }, { char: '', romaji: '', empty: true },
+          { 
+            char: 'を', romaji: 'wo', hint: '遠的草書',
+            mnemonic: { word: '〜を<ruby>見<rt>み</rt></ruby>る', plain: 'を見る', romaji: 'o miru', meaning: '看～ (賓語助詞)', cat: '文法核心', tip: '日語核心賓格助詞，專門接在受詞之後。' }
+          },
+          { 
+            char: 'ん', romaji: 'n', hint: '无的草書',
+            mnemonic: { word: '<ruby>温泉<rt>おんせん</rt></ruby>', plain: '温泉', romaji: 'onsen', meaning: '溫泉', cat: '療癒旅行', tip: '舒暢浸泡在熱氣氤氳的溫泉中發出滿足的鼻音（ん）。' }
+          }
+        ],
+        dakuon: [
+          { char: 'が', romaji: 'ga', hint: 'か濁音', mnemonic: { word: '<ruby>外国<rt>がいこく</rt></ruby>', plain: '外国', romaji: 'gaikoku', meaning: '外國、國外', cat: '國際旅遊', tip: '搭上國際航班前往外國（がいこく）。' } },
+          { char: 'ぎ', romaji: 'gi', hint: 'き濁音', mnemonic: { word: '<ruby>銀行<rt>ぎんこう</rt></ruby>', plain: '銀行', romaji: 'ginkou', meaning: '銀行', cat: '金錢金融', tip: '兌換外幣金錢的金融機構（ぎんこう）。' } },
+          { char: 'ぐ', romaji: 'gu', hint: 'く濁音', mnemonic: { word: '<ruby>具合<rt>ぐあい</rt></ruby>', plain: '具合', romaji: 'guai', meaning: '身體狀況、狀態', cat: '健康問候', tip: '問候對方身體氣色是否安好（具合はいかがですか）。' } },
+          { char: 'げ', romaji: 'ge', hint: 'け濁音', mnemonic: { word: '<ruby>元気<rt>げんき</rt></ruby>', plain: '元気', romaji: 'genki', meaning: '精神、活力', cat: '日常問候', tip: '打招呼金句：「お元気ですか？」（您好嗎？充滿活力）。' } },
+          { char: 'ご', romaji: 'go', hint: 'こ濁音', mnemonic: { word: 'ご飯', plain: 'ご飯', romaji: 'gohan', meaning: '米飯、白飯', cat: '每日餐飲', tip: '日式定食中香甜軟糯的一碗白米飯（ご飯）。' } },
+          { char: 'ざ', romaji: 'za', hint: 'さ濁音', mnemonic: { word: '<ruby>雑誌<rt>ざっし</rt></ruby>', plain: '雑誌', romaji: 'zasshi', meaning: '雜誌、期刊', cat: '閱讀休閒', tip: '書店書架上琳瑯滿目的設計雜誌（ざっし）。' } },
+          { char: 'じ', romaji: 'ji', hint: 'し濁音', mnemonic: { word: '<ruby>時間<rt>じかん</rt></ruby>', plain: '時間', romaji: 'jikan', meaning: '時間、時刻', cat: '時間管理', tip: '確認電車班次分秒不差的日本時間（じかん）。' } },
+          { char: 'ず', romaji: 'zu', hint: 'す濁音', mnemonic: { word: '<ruby>地図<rt>ちず</rt></ruby>', plain: '地図', romaji: 'chizu', meaning: '地圖、導航', cat: '旅行導覽', tip: '手握街道地圖（ちず），自由自在探索異國城市。' } },
+          { char: 'ぜ', romaji: 'ze', hint: 'せ濁音', mnemonic: { word: '<ruby>全部<rt>ぜんぶ</rt></ruby>', plain: '全部', romaji: 'zenbu', meaning: '全部、所有', cat: '數量範疇', tip: '「全部でいくらですか」（全部總共多少錢？）。' } },
+          { char: 'ぞ', romaji: 'zo', hint: 'そ濁音', mnemonic: { word: '<ruby>象<rt>ぞう</rt></ruby>', plain: '象', romaji: 'zou', meaning: '大象', cat: '動物名詞', tip: '長長鼻子、性情溫和的大象（ぞう）。' } },
+          { char: 'だ', romaji: 'da', hint: 'た濁音', mnemonic: { word: '<ruby>誰<rt>だれ</rt></ruby>', plain: '誰', romaji: 'dare', meaning: '誰、何人', cat: '疑問代詞', tip: '「あの方は誰ですか」（請問那位是誰呢？）。' } },
+          { char: 'ぢ', romaji: 'ji', hint: 'ち濁音', mnemonic: { word: '<ruby>鼻血<rt>はなぢ</rt></ruby>', plain: '鼻血', romaji: 'hanaji', meaning: '流鼻血', cat: '生理健康', tip: '日語中鼻血讀作 はなぢ（ち的濁音變形）。' } },
+          { char: 'づ', romaji: 'zu', hint: 'つ濁音', mnemonic: { word: '<ruby>続<rt>つづ</rt></ruby>く', plain: '続く', romaji: 'tsuzuku', meaning: '持續、繼續', cat: '動詞變化', tip: '學習日語只要每天持續（つづく），必定能掌握！' } },
+          { char: 'で', romaji: 'de', hint: 'て濁音', mnemonic: { word: '<ruby>電話<rt>でんわ</rt></ruby>', plain: '電話', romaji: 'denwa', meaning: '電話、打電話', cat: '通信日常', tip: '響起鈴聲、接通彼此對話的電話（でんわ）。' } },
+          { char: 'ど', romaji: 'do', hint: 'と濁音', mnemonic: { word: 'どこ', plain: 'どこ', romaji: 'doko', meaning: '哪裡', cat: '疑問詞', tip: '自由行最常用的問路句：「トイレはどこですか？」。' } },
+          { char: 'ば', romaji: 'ba', hint: 'は濁音', mnemonic: { word: '<ruby>場所<rt>ばしょ</rt></ruby>', plain: '場所', romaji: 'basho', meaning: '場所、地點', cat: '空間方位', tip: '問路實用詞：「待ち合わせの場所」（會合地點）。' } },
+          { char: 'び', romaji: 'bi', hint: 'ひ濁音', mnemonic: { word: '<ruby>病院<rt>びょういん</rt></ruby>', plain: '病院', romaji: 'byouin', meaning: '醫院、診所', cat: '健康醫療', tip: '生病身體不適時前往看診的醫院（びょういん）。' } },
+          { char: 'ぶ', romaji: 'bu', hint: 'ふ濁音', mnemonic: { word: '<ruby>豚肉<rt>ぶたにく</rt></ruby>', plain: '豚肉', romaji: 'butaniku', meaning: '豬肉', cat: '料理肉品', tip: '拉麵上不可或缺的美味叉燒豚肉（ぶたにく）。' } },
+          { char: 'べ', romaji: 'be', hint: 'へ濁音', mnemonic: { word: '<ruby>弁当<rt>べんとう</rt></ruby>', plain: '弁当', romaji: 'bentou', meaning: '便當、盒飯', cat: '超商餐飲', tip: '超商結帳必備：お弁当を温めますか？' } },
+          { char: 'ぼ', romaji: 'bo', hint: 'ほ濁音', mnemonic: { word: '<ruby>帽子<rt>ぼうし</rt></ruby>', plain: '帽子', romaji: 'boushi', meaning: '帽子', cat: '服飾配件', tip: '出門防曬造型好看的遮陽帽子（ぼうし）。' } },
+          { char: 'ぱ', romaji: 'pa', hint: 'は半濁音', mnemonic: { word: 'パン', plain: 'パン', romaji: 'pan', meaning: '麵包', cat: '烘焙食物', tip: '剛出爐散發濃郁小麥香氣的烤麵包（パン）。' } },
+          { char: 'ぴ', romaji: 'pi', hint: 'ひ半濁音', mnemonic: { word: 'ピザ', plain: 'ピザ', romaji: 'piza', meaning: '披薩', cat: '人氣快餐', tip: '起司牽絲、料多香濃的披薩（ピザ）。' } },
+          { char: 'ぷ', romaji: 'pu', hint: 'ふ半濁音', mnemonic: { word: 'プール', plain: 'プール', romaji: 'puuru', meaning: '游泳池', cat: '運動休閒', tip: '清涼消暑、波光粼粼的游泳池（プール）。' } },
+          { char: 'ぺ', romaji: 'pe', hint: 'へ半濁音', mnemonic: { word: 'ペン', plain: 'ペン', romaji: 'pen', meaning: '原子筆、鋼筆', cat: '文具書寫', tip: '填寫日本入境卡不可或缺的原子筆（ペン）。' } },
+          { char: 'ぽ', romaji: 'po', hint: 'ほ半濁音', mnemonic: { word: 'ポスト', plain: 'ポスト', romaji: 'posuto', meaning: '郵筒、信箱', cat: '街道地標', tip: '日本街頭經典顯眼的紅色立體郵筒（ポスト）。' } }
+        ],
+        yoon: [
+          { char: 'きゃ', romaji: 'kya', mnemonic: { word: 'キャンプ', plain: 'キャンプ', romaji: 'kyanpu', meaning: '露營', cat: '戶外活動', tip: '野外搭帳篷烤肉的露營（キャンプ）。' } },
+          { char: 'きゅ', romaji: 'kyu', mnemonic: { word: 'きゅうり', plain: 'きゅうり', romaji: 'kyuuri', meaning: '小黃瓜', cat: '蔬菜食材', tip: '沙拉與淺漬小菜常見的爽脆小黃瓜（きゅうり）。' } },
+          { char: 'きょ', romaji: 'kyo', mnemonic: { word: '<ruby>京都<rt>きょうと</rt></ruby>', plain: '京都', romaji: 'kyouto', meaning: '京都', cat: '日本古都', tip: '古寺名剎、千本鳥居林立的文化古都（京都）。' } },
+          { char: 'しゃ', romaji: 'sha', mnemonic: { word: '<ruby>写真<rt>しゃしん</rt></ruby>', plain: '写真', romaji: 'shashin', meaning: '照片、拍照', cat: '旅遊記錄', tip: '旅途中請人幫忙拍照：「写真を撮ってください」。' } },
+          { char: 'しゅ', romaji: 'shu', mnemonic: { word: '<ruby>宿題<rt>しゅくだい</rt></ruby>', plain: '宿題', romaji: 'shukudai', meaning: '作業、功課', cat: '學校學習', tip: '放學後認真完成的課後作業功課（宿題）。' } },
+          { char: 'しょ', romaji: 'sho', mnemonic: { word: '<ruby>食堂<rt>しょくどう</rt></ruby>', plain: '食堂', romaji: 'shokudou', meaning: '食堂、餐廳', cat: '餐飲美食', tip: '平價道地的大眾日式家庭食堂（食堂）。' } },
+          { char: 'ちゃ', romaji: 'cha', mnemonic: { word: '<ruby>抹茶<rt>まっちゃ</rt></ruby>', plain: '抹茶', romaji: 'maccha', meaning: '抹茶', cat: '傳統茶道', tip: '宇治名產、茶香四溢的日式濃抹茶（抹茶）。' } },
+          { char: 'ちゅ', romaji: 'chu', mnemonic: { word: '<ruby>注意<rt>ちゅうい</rt></ruby>', plain: '注意', romaji: 'chuui', meaning: '注意、小心', cat: '安全警示', tip: '電車關門提示：「ドアにご注意ください」。' } },
+          { char: 'ちょ', romaji: 'cho', mnemonic: { word: 'ちょっと', plain: 'ちょっと', romaji: 'chotto', meaning: '稍微、一下下', cat: '口語高頻', tip: '婉拒或呼喚常用句：「ちょっと待ってください」。' } },
+          { char: 'にゃ', romaji: 'nya', mnemonic: { word: 'にゃんこ', plain: 'にゃんこ', romaji: 'nyanko', meaning: '貓咪（口語）', cat: '動物萌寵', tip: '日語貓叫聲是「にゃー」，貓咪暱稱即「にゃんこ」。' } },
+          { char: 'にゅ', romaji: 'nyu', mnemonic: { word: '<ruby>入学<rt>にゅうがく</rt></ruby>', plain: '入学', romaji: 'nyuugaku', meaning: '入學', cat: '學校學習', tip: '四月櫻花季正是日本的入學季（入学式）。' } },
+          { char: 'にょ', romaji: 'nyo' },
+          { char: 'ひゃ', romaji: 'hya', mnemonic: { word: '<ruby>百<rt>ひゃく</rt></ruby>', plain: '百', romaji: 'hyaku', meaning: '一百', cat: '數字金錢', tip: '「百円」(ひゃくえん) 是超商找零最常聽到的單位。' } },
+          { char: 'ひゅ', romaji: 'hyu' },
+          { char: 'ひょ', romaji: 'hyo', mnemonic: { word: '<ruby>表<rt>ひょう</rt></ruby>', plain: '表', romaji: 'hyou', meaning: '表格、圖表', cat: '文書學習', tip: '時刻表寫作「時刻表」(じこくひょう)。' } },
+          { char: 'みゃ', romaji: 'mya' },
+          { char: 'みゅ', romaji: 'myu' },
+          { char: 'みょ', romaji: 'myo', mnemonic: { word: '<ruby>名字<rt>みょうじ</rt></ruby>', plain: '名字', romaji: 'myouji', meaning: '姓氏', cat: '自我介紹', tip: '日本人自我介紹多半先說名字（姓氏）。' } },
+          { char: 'りゃ', romaji: 'rya' },
+          { char: 'りゅ', romaji: 'ryu', mnemonic: { word: '<ruby>留学<rt>りゅうがく</rt></ruby>', plain: '留学', romaji: 'ryuugaku', meaning: '留學', cat: '學習計畫', tip: '「日本に留学したいです」（想去日本留學）。' } },
+          { char: 'りょ', romaji: 'ryo', mnemonic: { word: '<ruby>旅行<rt>りょこう</rt></ruby>', plain: '旅行', romaji: 'ryokou', meaning: '旅行', cat: '旅遊計畫', tip: '「日本旅行」是最有動力的學習理由（りょこう）。' } },
+          { char: 'ぎゃ', romaji: 'gya' },
+          { char: 'ぎゅ', romaji: 'gyu', mnemonic: { word: '<ruby>牛乳<rt>ぎゅうにゅう</rt></ruby>', plain: '牛乳', romaji: 'gyuunyuu', meaning: '牛奶', cat: '乳品飲料', tip: '超商冷藏櫃的北海道牛乳（ぎゅうにゅう）。' } },
+          { char: 'ぎょ', romaji: 'gyo', mnemonic: { word: '<ruby>餃子<rt>ぎょうざ</rt></ruby>', plain: '餃子', romaji: 'gyouza', meaning: '煎餃', cat: '定食配菜', tip: '拉麵店的黃金組合：ラーメンと餃子（ぎょうざ）。' } },
+          { char: 'じゃ', romaji: 'ja', mnemonic: { word: 'じゃがいも', plain: 'じゃがいも', romaji: 'jagaimo', meaning: '馬鈴薯', cat: '蔬菜食材', tip: '肉じゃが（馬鈴薯燉肉）是日本家常菜代表。' } },
+          { char: 'じゅ', romaji: 'ju', mnemonic: { word: '<ruby>授業<rt>じゅぎょう</rt></ruby>', plain: '授業', romaji: 'jugyou', meaning: '課程、上課', cat: '學校學習', tip: '「日本語の授業」＝日語課（じゅぎょう）。' } },
+          { char: 'じょ', romaji: 'jo', mnemonic: { word: '<ruby>上手<rt>じょうず</rt></ruby>', plain: '上手', romaji: 'jouzu', meaning: '擅長、拿手', cat: '稱讚用語', tip: '常被日本人稱讚：「日本語が上手ですね」。' } },
+          { char: 'びゃ', romaji: 'bya' },
+          { char: 'びゅ', romaji: 'byu' },
+          { char: 'びょ', romaji: 'byo', mnemonic: { word: '<ruby>病院<rt>びょういん</rt></ruby>', plain: '病院', romaji: 'byouin', meaning: '醫院', cat: '健康醫療', tip: '注意與「美容院」(びよういん) 只差一個小字。' } },
+          { char: 'ぴゃ', romaji: 'pya' },
+          { char: 'ぴゅ', romaji: 'pyu' },
+          { char: 'ぴょ', romaji: 'pyo' }
+        ]
+      },
+      katakana: {
+        seion: [
+          { char: 'ア', romaji: 'a', hint: '阿的偏旁', mnemonic: { word: 'アイス', plain: 'アイス', romaji: 'aisu', meaning: '冰淇淋', cat: '甜點冰品', tip: '夏日超商必買的香甜冰淇淋（アイス）。' } },
+          { char: 'イ', romaji: 'i', hint: '伊的偏旁', mnemonic: { word: 'イベント', plain: 'イベント', romaji: 'ibento', meaning: '活動、盛事', cat: '慶典娛樂', tip: '商場與祭典舉辦的熱鬧活動（イベント）。' } },
+          { char: 'ウ', romaji: 'u', hint: '宇的部首', mnemonic: { word: 'ウーロン茶', plain: 'ウーロン茶', romaji: 'uuroncha', meaning: '烏龍茶', cat: '茶飲飲料', tip: '居酒屋常見無酒精飲品：烏龍茶（ウーロン茶）。' } },
+          { char: 'エ', romaji: 'e', hint: '江的偏旁', mnemonic: { word: 'エアコン', plain: 'エアコン', romaji: 'eakon', meaning: '冷暖氣機', cat: '家電設施', tip: '飯店客房調節溫度的冷暖氣空調（エアコン）。' } },
+          { char: 'オ', romaji: 'o', hint: '於的偏旁', mnemonic: { word: 'オレンジ', plain: 'オレンジ', romaji: 'orenji', meaning: '柳橙、柳丁', cat: '水果果汁', tip: '充滿維他命C的現榨柳橙汁（オレンジジュース）。' } },
+          { char: 'カ', romaji: 'ka', hint: '加的偏旁', mnemonic: { word: 'カフェ', plain: 'カフェ', romaji: 'kafe', meaning: '咖啡廳', cat: '休閒餐飲', tip: '街角飄出研磨咖啡香氣的質感咖啡廳（カフェ）。' } },
+          { char: 'キ', romaji: 'ki', hint: '幾的草書', mnemonic: { word: 'キー', plain: 'キー', romaji: 'kii', meaning: '鑰匙、房卡', cat: '飯店入住', tip: '辦妥Check-in時領取的客房鑰匙與房卡（ルームキー）。' } },
+          { char: 'ク', romaji: 'ku', hint: '久的偏旁', mnemonic: { word: 'クラス', plain: 'クラス', romaji: 'kurasu', meaning: '班級、等級', cat: '學校學習', tip: '同班同學一起上課的日語班級（クラス）。' } },
+          { char: 'ケ', romaji: 'ke', hint: '介的偏旁', mnemonic: { word: 'ケーキ', plain: 'ケーキ', romaji: 'keeki', meaning: '蛋糕', cat: '人氣甜點', tip: '日本洋菓子店櫥窗裡精緻的水果草莓鮮奶油蛋糕（ケーキ）。' } },
+          { char: 'コ', romaji: 'ko', hint: '己的偏旁', mnemonic: { word: 'コーヒー', plain: 'コーヒー', romaji: 'koohii', meaning: '咖啡', cat: '提神飲品', tip: '早晨喚醒活力的一杯香熱美式咖啡（ホットコーヒー）。' } },
+          { char: 'サ', romaji: 'sa', hint: '散的偏旁', mnemonic: { word: 'サラダ', plain: 'サラダ', romaji: 'sarada', meaning: '沙拉', cat: '健康輕食', tip: '超商與餐廳新鮮脆嫩的田園蔬果沙拉（サラダ）。' } },
+          { char: 'シ', romaji: 'shi', hint: '之的偏旁', mnemonic: { word: 'シャツ', plain: 'シャツ', romaji: 'shatsu', meaning: '襯衫、衣衫', cat: '服裝穿搭', tip: '乾淨筆挺、舒適好穿的白色襯衫（シャツ）。' } },
+          { char: 'ス', romaji: 'su', hint: '須的偏旁', mnemonic: { word: 'スープ', plain: 'スープ', romaji: 'suupu', meaning: '熱湯、濃湯', cat: '西式餐點', tip: '寒冷冬日喝上一碗暖胃的玉米濃湯（コーンスープ）。' } },
+          { char: 'セ', romaji: 'se', hint: '世的偏旁', mnemonic: { word: 'セーター', plain: 'セーター', romaji: 'seetaa', meaning: '毛衣', cat: '保暖服飾', tip: '柔軟保暖、觸感舒服的針織毛衣（セーター）。' } },
+          { char: 'ソ', romaji: 'so', hint: '曾的偏旁', mnemonic: { word: 'ソファー', plain: 'ソファー', romaji: 'sofaa', meaning: '沙發', cat: '客廳家具', tip: '回到家讓身體全然放鬆的柔軟大沙發（ソファー）。' } },
+          { char: 'タ', romaji: 'ta', hint: '多的偏旁', mnemonic: { word: 'タクシー', plain: 'タクシー', romaji: 'takushii', meaning: '計程車', cat: '市區交通', tip: '車門會自動開啟迎接乘客的日本計程車（タクシー）。' } },
+          { char: 'チ', romaji: 'chi', hint: '千的楷書', mnemonic: { word: 'チーズ', plain: 'チーズ', romaji: 'chiizu', meaning: '起司、乳酪', cat: '濃郁乳品', tip: '拍照時常用口號：「はい、チーズ！」（笑一個！）。' } },
+          { char: 'ツ', romaji: 'tsu', hint: '川的偏旁', mnemonic: { word: 'ツアー', plain: 'ツアー', romaji: 'tsuaa', meaning: '旅行團、觀光', cat: '旅遊行程', tip: '跟隨導遊深度體驗日本名勝的觀光行程（ツアー）。' } },
+          { char: 'テ', romaji: 'te', hint: '天的草書', mnemonic: { word: 'テーブル', plain: 'テーブル', romaji: 'teeburu', meaning: '餐桌、桌子', cat: '家具陳設', tip: '擺滿豐盛日本料理的木質大餐桌（テーブル）。' } },
+          { char: 'ト', romaji: 'to', hint: '止的偏旁', mnemonic: { word: 'トイレ', plain: 'トイレ', romaji: 'toire', meaning: '洗手間、廁所', cat: '外出必備', tip: '自由行問路超級必備句：「トイレはどこですか？」。' } },
+          { char: 'ナ', romaji: 'na', hint: '奈的偏旁', mnemonic: { word: 'ナイフ', plain: 'ナイフ', romaji: 'naifu', meaning: '餐刀、小刀', cat: '西式餐具', tip: '品嚐牛排西餐時搭配叉子使用的餐刀（ナイフ）。' } },
+          { char: 'ニ', romaji: 'ni', hint: '二的楷書', mnemonic: { word: 'ニュース', plain: 'ニュース', romaji: 'nyuusu', meaning: '新聞、消息', cat: '媒體時事', tip: '晚上打開電視收看的即時日本新聞（ニュース）。' } },
+          { char: 'ヌ', romaji: 'nu', hint: '奴的偏旁', mnemonic: { word: 'ヌードル', plain: 'ヌードル', romaji: 'nuudoru', meaning: '麵條、杯麵', cat: '速食便利', tip: '熱水沖泡三分鐘即可享用的日式杯麵（カップヌードル）。' } },
+          { char: 'ネ', romaji: 'ne', hint: '禰的偏旁', mnemonic: { word: 'ネクタイ', plain: 'ネクタイ', romaji: 'nekutai', meaning: '領帶', cat: '正裝配件', tip: '日本上班族上班必繫的端莊紳士領帶（ネクタイ）。' } },
+          { char: 'ノ', romaji: 'no', hint: '乃的偏旁', mnemonic: { word: 'ノート', plain: 'ノート', romaji: 'nooto', meaning: '筆記本', cat: '學習文具', tip: '記錄下滿滿日語文法與生字的方格筆記本（ノート）。' } },
+          { char: 'ハ', romaji: 'ha', hint: '八的楷書', mnemonic: { word: 'ハンカチ', plain: 'ハンカチ', romaji: 'hankachi', meaning: '手帕', cat: '隨身用品', tip: '日本洗手間多半不設烘手機，手帕（ハンカチ）是必備品。' } },
+          { char: 'ヒ', romaji: 'hi', hint: '比的偏旁', mnemonic: { word: 'ヒーター', plain: 'ヒーター', romaji: 'hiitaa', meaning: '暖氣、電暖器', cat: '家電設施', tip: '冬天房間取暖用的暖氣機（ヒーター）。' } },
+          { char: 'フ', romaji: 'fu', hint: '不的偏旁', mnemonic: { word: 'フォーク', plain: 'フォーク', romaji: 'fooku', meaning: '叉子', cat: '西式餐具', tip: '吃義大利麵與甜點專用的西式叉子（フォーク）。' } },
+          { char: 'ヘ', romaji: 'he', hint: '部的偏旁', mnemonic: { word: 'ヘルメット', plain: 'ヘルメット', romaji: 'herumetto', meaning: '安全帽、頭盔', cat: '行車安全', tip: '騎自行車或機車必戴的防護安全帽（ヘルメット）。' } },
+          { char: 'ホ', romaji: 'ho', hint: '保的偏旁', mnemonic: { word: 'ホーム', plain: 'ホーム', romaji: 'hoomu', meaning: '月台、候車月台', cat: '鐵道月台', tip: '電車車站內等車的乘車月台（駅のホーム）。' } },
+          { char: 'マ', romaji: 'ma', hint: '末的草書', mnemonic: { word: 'マスク', plain: 'マスク', romaji: 'masuku', meaning: '口罩', cat: '健康日常', tip: '預防感冒與花粉症常戴的衛生口罩（マスク）。' } },
+          { char: 'ミ', romaji: 'mi', hint: '三的草書', mnemonic: { word: 'ミルク', plain: 'ミルク', romaji: 'miruku', meaning: '牛奶', cat: '乳品飲料', tip: '香濃純淨的北海道鮮奶（ミルク／牛乳）。' } },
+          { char: 'ム', romaji: 'mu', hint: '牟的偏旁', mnemonic: { word: 'ムービー', plain: 'ムービー', romaji: 'muubii', meaning: '電影、短片', cat: '影音休閒', tip: '假日與朋友相約電影院觀賞好看的電影（ムービー）。' } },
+          { char: 'メ', romaji: 'me', hint: '女的偏旁', mnemonic: { word: 'メニュー', plain: 'メニュー', romaji: 'menyuu', meaning: '菜單、目錄', cat: '餐廳點餐', tip: '入座後向店員索取：「メニューをお願いします」。' } },
+          { char: 'モ', romaji: 'mo', hint: '毛的草書', mnemonic: { word: 'モデル', plain: 'モデル', romaji: 'moderu', meaning: '模特兒、模型', cat: '時尚職業', tip: '展現流行服飾穿搭的時尚模特兒（モデル）。' } },
+          { char: 'ヤ', romaji: 'ya', hint: '也的偏旁', mnemonic: { word: 'ヤング', plain: 'ヤング', romaji: 'yangu', meaning: '年輕人、青春', cat: '流行語', tip: '充滿活力與熱情的年輕世代（ヤング）。' } },
+          { char: '', romaji: '', empty: true },
+          { char: 'ユ', romaji: 'yu', hint: '由的偏旁', mnemonic: { word: 'ユニフォーム', plain: 'ユニフォーム', romaji: 'yunifoomu', meaning: '制服、隊服', cat: '運動團體', tip: '球隊比賽凝聚向心力的運動制服（ユニフォーム）。' } },
+          { char: '', romaji: '', empty: true },
+          { char: 'ヨ', romaji: 'yo', hint: '與的偏旁', mnemonic: { word: 'ヨーグルト', plain: 'ヨーグルト', romaji: 'yooguruto', meaning: '優格、酸奶', cat: '早餐乳品', tip: '早餐搭配新鮮莓果享用的健康優格（ヨーグルト）。' } },
+          { char: 'ラ', romaji: 'ra', hint: '良的偏旁', mnemonic: { word: 'ラジオ', plain: 'ラジオ', romaji: 'rajio', meaning: '收音機、廣播', cat: '聲音媒體', tip: '早晨跟著廣播音樂做日本經典的收音機體操（ラジオ体操）。' } },
+          { char: 'リ', romaji: 'ri', hint: '利的偏旁', mnemonic: { word: 'リーダー', plain: 'リーダー', romaji: 'riidaa', meaning: '領導者、隊長', cat: '職場角色', tip: '帶領團隊達成目標的核心領導人（リーダー）。' } },
+          { char: 'ル', romaji: 'ru', hint: '流的偏旁', mnemonic: { word: 'ルール', plain: 'ルール', romaji: 'ruuru', meaning: '規則、規定', cat: '生活禮儀', tip: '出國旅行遵守當地的文化禮儀與規則（ルール）。' } },
+          { char: 'レ', romaji: 're', hint: '禮的偏旁', mnemonic: { word: 'レジ', plain: 'レジ', romaji: 'reji', meaning: '收銀台、結帳處', cat: '超商購物', tip: '購物排隊結帳時的收銀台（レジでお会計）。' } },
+          { char: 'ロ', romaji: 'ro', hint: '呂的偏旁', mnemonic: { word: 'ロビー', plain: 'ロビー', romaji: 'robii', meaning: '飯店大廳', cat: '飯店接待', tip: '挑高寬敞、供旅客等候休息的飯店大廳（ホテルのロビー）。' } },
+          { char: 'ワ', romaji: 'wa', hint: '和的偏旁', mnemonic: { word: 'ワイシャツ', plain: 'ワイシャツ', romaji: 'waishatsu', meaning: '白色襯衫', cat: '上班穿搭', tip: '上班族商務必穿的整潔白襯衫（ワイシャツ）。' } },
+          { char: '', romaji: '', empty: true }, { char: '', romaji: '', empty: true }, { char: '', romaji: '', empty: true },
+          { char: 'ヲ', romaji: 'wo', hint: '乎的偏旁', mnemonic: { word: 'ヲタ芸', plain: 'ヲタ芸', romaji: 'wotagei', meaning: '御宅應援舞', cat: '次文化', tip: '偶像演唱會台下熱情應援的光棒舞蹈（ヲタ芸）。' } },
+          { char: 'ン', romaji: 'n', hint: '爾的偏旁', mnemonic: { word: 'ラーメン', plain: 'ラーメン', romaji: 'raamen', meaning: '拉麵 (尾音ン)', cat: '美食文化', tip: '「ラーメン」結尾字正是片假名鼻音ン。' } }
+        ],
+        dakuon: [
+          { char: 'ガ', romaji: 'ga', hint: 'カ濁音', mnemonic: { word: 'ガラス', plain: 'ガラス', romaji: 'garasu', meaning: '玻璃', cat: '材質生活', tip: '明淨透明的玻璃落地窗（ガラス）。' } },
+          { char: 'ギ', romaji: 'gi', hint: 'キ濁音', mnemonic: { word: 'ギター', plain: 'ギター', romaji: 'gitaa', meaning: '吉他', cat: '音樂樂器', tip: '彈奏美妙旋律的六弦木吉他（ギター）。' } },
+          { char: 'グ', romaji: 'gu', hint: 'ク濁音', mnemonic: { word: 'グラス', plain: 'グラス', romaji: 'gurasu', meaning: '玻璃水杯', cat: '餐桌器具', tip: '盛裝冰水或飲品的玻璃杯（グラス）。' } },
+          { char: 'ゲ', romaji: 'ge', hint: 'ケ濁音', mnemonic: { word: 'ゲーム', plain: 'ゲーム', romaji: 'geemu', meaning: '電玩、遊戲', cat: '娛樂休閒', tip: '秋葉原充滿魅力的任天堂遊戲（ゲーム）。' } },
+          { char: 'ゴ', romaji: 'go', hint: 'コ濁音', mnemonic: { word: 'ゴルフ', plain: 'ゴルフ', romaji: 'gorufu', meaning: '高爾夫球', cat: '戶外運動', tip: '綠茵草地上揮桿的高爾夫運動（ゴルフ）。' } },
+          { char: 'ザ', romaji: 'za', hint: 'サ濁音', mnemonic: { word: 'デザート', plain: 'デザート', romaji: 'dezaato', meaning: '甜點', cat: '餐後甜品', tip: '「ザ」多出現在詞中，如甜點（デザート）。' } },
+          { char: 'ジ', romaji: 'ji', hint: 'シ濁音', mnemonic: { word: 'ジュース', plain: 'ジュース', romaji: 'juusu', meaning: '果汁', cat: '飲料', tip: '自動販賣機最常見的現榨果汁（ジュース）。' } },
+          { char: 'ズ', romaji: 'zu', hint: 'ス濁音', mnemonic: { word: 'ズボン', plain: 'ズボン', romaji: 'zubon', meaning: '長褲', cat: '服裝穿搭', tip: '日語的長褲來自法語，寫作ズボン。' } },
+          { char: 'ゼ', romaji: 'ze', hint: 'セ濁音', mnemonic: { word: 'ゼロ', plain: 'ゼロ', romaji: 'zero', meaning: '零', cat: '數字', tip: '電話號碼唸法常用ゼロ而非「れい」。' } },
+          { char: 'ゾ', romaji: 'zo', hint: 'ソ濁音', mnemonic: { word: 'ゾウ', plain: 'ゾウ', romaji: 'zou', meaning: '大象', cat: '動物名詞', tip: '動物名在日語中常以片假名書寫（ゾウ）。' } },
+          { char: 'ダ', romaji: 'da', hint: 'タ濁音', mnemonic: { word: 'ダンス', plain: 'ダンス', romaji: 'dansu', meaning: '舞蹈', cat: '娛樂活動', tip: '祭典與演唱會上的熱舞（ダンス）。' } },
+          { char: 'ヂ', romaji: 'ji', hint: 'チ濁音（現代幾乎不使用）' },
+          { char: 'ヅ', romaji: 'zu', hint: 'ツ濁音（現代幾乎不使用）' },
+          { char: 'デ', romaji: 'de', hint: 'テ濁音', mnemonic: { word: 'デパート', plain: 'デパート', romaji: 'depaato', meaning: '百貨公司', cat: '購物', tip: '地下美食街稱為「デパ地下」(デパちか)。' } },
+          { char: 'ド', romaji: 'do', hint: 'ト濁音', mnemonic: { word: 'ドア', plain: 'ドア', romaji: 'doa', meaning: '門', cat: '交通安全', tip: '電車廣播：「ドアが閉まります、ご注意ください」。' } },
+          { char: 'バ', romaji: 'ba', hint: 'ハ濁音', mnemonic: { word: 'バス', plain: 'バス', romaji: 'basu', meaning: '公車、巴士', cat: '市區交通', tip: '「バス乗り場はどこですか」（公車站牌在哪裡）。' } },
+          { char: 'ビ', romaji: 'bi', hint: 'ヒ濁音', mnemonic: { word: 'ビル', plain: 'ビル', romaji: 'biru', meaning: '大樓', cat: '城市建築', tip: '新宿澀谷高聳入雲的現代大樓（ビル）。' } },
+          { char: 'ブ', romaji: 'bu', hint: 'フ濁音', mnemonic: { word: 'ブーツ', plain: 'ブーツ', romaji: 'buutsu', meaning: '靴子', cat: '服飾配件', tip: '冬季北海道旅遊必備的防滑靴（ブーツ）。' } },
+          { char: 'ベ', romaji: 'be', hint: 'ヘ濁音', mnemonic: { word: 'ベッド', plain: 'ベッド', romaji: 'beddo', meaning: '床', cat: '飯店住宿', tip: '訂房常見選項：シングルベッド／ツインベッド。' } },
+          { char: 'ボ', romaji: 'bo', hint: 'ホ濁音', mnemonic: { word: 'ボール', plain: 'ボール', romaji: 'booru', meaning: '球', cat: '運動用品', tip: '棒球與足球通用的「球」即ボール。' } },
+          { char: 'パ', romaji: 'pa', hint: 'ハ半濁音', mnemonic: { word: 'パン', plain: 'パン', romaji: 'pan', meaning: '麵包', cat: '烘焙食物', tip: '剛出爐、小麥香氣濃郁的麵包（パン）。' } },
+          { char: 'ピ', romaji: 'pi', hint: 'ヒ半濁音', mnemonic: { word: 'ピザ', plain: 'ピザ', romaji: 'piza', meaning: '披薩', cat: '人氣快餐', tip: '起司牽絲、料多香濃的披薩（ピザ）。' } },
+          { char: 'プ', romaji: 'pu', hint: 'フ半濁音', mnemonic: { word: 'プール', plain: 'プール', romaji: 'puuru', meaning: '游泳池', cat: '運動休閒', tip: '飯店設施常見的室內泳池（プール）。' } },
+          { char: 'ペ', romaji: 'pe', hint: 'ヘ半濁音', mnemonic: { word: 'ペン', plain: 'ペン', romaji: 'pen', meaning: '筆', cat: '文具書寫', tip: '填寫入境卡不可或缺的原子筆（ペン）。' } },
+          { char: 'ポ', romaji: 'po', hint: 'ホ半濁音', mnemonic: { word: 'ポスト', plain: 'ポスト', romaji: 'posuto', meaning: '郵筒', cat: '街道地標', tip: '日本街頭經典的紅色郵筒（ポスト）。' } }
+        ],
+        yoon: [
+          { char: 'キャ', romaji: 'kya', mnemonic: { word: 'キャンプ', plain: 'キャンプ', romaji: 'kyanpu', meaning: '露營', cat: '戶外生活', tip: '山林間感受自然的露營（キャンプ）。' } },
+          { char: 'キュ', romaji: 'kyu', mnemonic: { word: 'キューブ', plain: 'キューブ', romaji: 'kyuubu', meaning: '方塊、魔術方塊', cat: '益智玩具', tip: '色彩繽紛、鍛鍊邏輯的魔術方塊（キューブ）。' } },
+          { char: 'キョ', romaji: 'kyo', mnemonic: { word: 'トーキョー', plain: 'トーキョー', romaji: 'tookyoo', meaning: '東京（片假名寫法）', cat: '日本地名', tip: '「キョ」少在詞首，多出現在詞中，如トーキョー。' } },
+          { char: 'シャ', romaji: 'sha', mnemonic: { word: 'シャツ', plain: 'シャツ', romaji: 'shatsu', meaning: '襯衫', cat: '服裝穿搭', tip: '乾淨筆挺的白襯衫（シャツ）。' } },
+          { char: 'シュ', romaji: 'shu', mnemonic: { word: 'シューズ', plain: 'シューズ', romaji: 'shuuzu', meaning: '鞋子', cat: '服飾配件', tip: '運動鞋寫作「スポーツシューズ」。' } },
+          { char: 'ショ', romaji: 'sho', mnemonic: { word: 'ショッピング', plain: 'ショッピング', romaji: 'shoppingu', meaning: '購物', cat: '購物逛街', tip: '購物中心即「ショッピングモール」。' } },
+          { char: 'チャ', romaji: 'cha', mnemonic: { word: 'チャンス', plain: 'チャンス', romaji: 'chansu', meaning: '機會', cat: '日常用語', tip: '外來語中高頻出現的「機會」（チャンス）。' } },
+          { char: 'チュ', romaji: 'chu', mnemonic: { word: 'チューブ', plain: 'チューブ', romaji: 'chuubu', meaning: '軟管、管狀物', cat: '生活用品', tip: '牙膏等管狀包裝即チューブ。' } },
+          { char: 'チョ', romaji: 'cho', mnemonic: { word: 'チョコレート', plain: 'チョコレート', romaji: 'chokoreeto', meaning: '巧克力', cat: '人氣甜點', tip: '伴手禮常見的生巧克力（生チョコ）。' } },
+          { char: 'ニュ', romaji: 'nyu', mnemonic: { word: 'ニュース', plain: 'ニュース', romaji: 'nyuusu', meaning: '新聞', cat: '媒體時事', tip: '晚間電視播報的即時新聞（ニュース）。' } },
+          { char: 'ミュ', romaji: 'myu', mnemonic: { word: 'ミュージック', plain: 'ミュージック', romaji: 'myuujikku', meaning: '音樂', cat: '影音休閒', tip: '音樂劇寫作「ミュージカル」。' } },
+          { char: 'リュ', romaji: 'ryu', mnemonic: { word: 'リュック', plain: 'リュック', romaji: 'ryukku', meaning: '後背包', cat: '旅行用品', tip: '自由行最實用的後背包（リュックサック）。' } },
+          { char: 'ジャ', romaji: 'ja', mnemonic: { word: 'ジャム', plain: 'ジャム', romaji: 'jamu', meaning: '果醬', cat: '早餐食品', tip: '吐司抹上草莓果醬（いちごジャム）。' } },
+          { char: 'ジュ', romaji: 'ju', mnemonic: { word: 'ジュース', plain: 'ジュース', romaji: 'juusu', meaning: '果汁', cat: '飲料', tip: '便利商店冷藏櫃的果汁（ジュース）。' } },
+          { char: 'ジョ', romaji: 'jo', mnemonic: { word: 'ジョギング', plain: 'ジョギング', romaji: 'jogingu', meaning: '慢跑', cat: '運動習慣', tip: '皇居周邊是東京著名的慢跑路線（ジョギング）。' } },
+          { char: 'ギャ', romaji: 'gya', mnemonic: { word: 'ギャラリー', plain: 'ギャラリー', romaji: 'gyararii', meaning: '藝廊、展場', cat: '藝文空間', tip: '小型美術展場常稱為ギャラリー。' } },
+          { char: 'ビュ', romaji: 'byu', mnemonic: { word: 'ビュッフェ', plain: 'ビュッフェ', romaji: 'byuffe', meaning: '自助餐', cat: '飯店餐飲', tip: '飯店早餐常見的自助式餐點（ビュッフェ）。' } },
+          { char: 'ピュ', romaji: 'pyu' }
+        ]
+      }
+    };
+
+    // 分類標籤的數量改為實際計算，避免寫死的 (46)/(25)/(36) 與資料不符
+    function updateKanaFilterCounts() {
+      document.querySelectorAll('.kana-filter-btn').forEach(btn => {
+        const key = btn.getAttribute('data-filter');
+        const label = btn.getAttribute('data-label') || btn.textContent;
+        const n = (KANA_DATA[STATE.kanaType][key] || []).filter(k => !k.empty).length;
+        btn.textContent = `${label} (${n})`;
+      });
+    }
+
+    function renderKanaGrid() {
+      const grid = document.getElementById('kanaGrid');
+      grid.innerHTML = '';
+      updateKanaFilterCounts();
+      const list = KANA_DATA[STATE.kanaType][STATE.kanaFilter] || [];
+
+      list.forEach(item => {
+        if (item.empty) {
+          const emptyCell = document.createElement('div');
+          emptyCell.className = 'aspect-square opacity-0 pointer-events-none';
+          grid.appendChild(emptyCell);
+          return;
+        }
+
+        const card = document.createElement('div');
+        card.className = `group aspect-square rounded-2xl p-2 flex flex-col items-center justify-between border cursor-pointer transition transform active:scale-95 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-700 shadow-sm`;
+
+        card.innerHTML = `
+          <div class="w-full flex justify-between items-center text-[10px] text-slate-400">
+            <span>${item.romaji}</span>
+            <button class="kana-sound-btn p-1 text-slate-300 hover:text-rose-500" data-char="${item.char}">
+              <i class="fa-solid fa-volume-high text-[10px]"></i>
+            </button>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-slate-100 font-sans group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+            ${item.char}
+          </div>
+          <div class="text-[9px] text-slate-400 font-mono">
+            ${STATE.kanaType === 'hiragana' ? '平' : '片'}
+          </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.kana-sound-btn')) {
+            e.stopPropagation();
+            playJapaneseAudio(item.char);
+            return;
+          }
+          openKanaWritingStudio(item);
+        });
+
+        grid.appendChild(card);
+      });
+    }
+
+    /* ==========================================================================
+       CANVAS STROKE WRITING LOGIC (POINTER EVENTS & PRECISION DPI FIX)
+       ========================================================================== */
+    let canvas, ctx;
+    let canvasWidth = 0, canvasHeight = 0;
+
+    function initCanvas() {
+      canvas = document.getElementById('kanaCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+
+      const getPoint = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      };
+
+      const getStrokeColor = () => {
+        if (STATE.brushColor === 'ink') {
+          return document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a';
+        } else if (STATE.brushColor === 'matcha') {
+          return '#16a34a';
+        }
+        return document.documentElement.classList.contains('dark') ? '#fb7185' : '#e11d48';
+      };
+
+      // Pointer Event Handlers for smooth stroke drawing on desktop and mobile touch
+      canvas.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        STATE.isDrawing = true;
+        const pt = getPoint(e);
+        STATE.lastPoint = pt;
+
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, STATE.brushSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = getStrokeColor();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y);
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!STATE.isDrawing) return;
+        e.preventDefault();
+        const pt = getPoint(e);
+
+        ctx.lineWidth = STATE.brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = getStrokeColor();
+
+        ctx.lineTo(pt.x, pt.y);
+        ctx.stroke();
+        STATE.lastPoint = pt;
+      });
+
+      const endDrawing = (e) => {
+        if (STATE.isDrawing) {
+          STATE.isDrawing = false;
+          STATE.lastPoint = null;
+          ctx.closePath();
+          try {
+            canvas.releasePointerCapture(e.pointerId);
+          } catch (err) {}
+        }
+      };
+
+      canvas.addEventListener('pointerup', endDrawing);
+      canvas.addEventListener('pointercancel', endDrawing);
+    }
+
+    function setupCanvasDPI(force) {
+      if (!canvas || !ctx) return;
+      const container = document.getElementById('canvasContainer');
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      // 尺寸沒變就不要重設 canvas.width：那會清空使用者正在寫的字
+      if (!force && Math.round(rect.width) === Math.round(canvasWidth) &&
+          Math.round(rect.height) === Math.round(canvasHeight)) {
+        return;
+      }
+
+      const dpr = window.devicePixelRatio || 1;
+      canvasWidth = rect.width;
+      canvasHeight = rect.height;
+
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    }
+
+    function clearCanvas() {
+      if (!ctx || !canvas) return;
+      // ctx 已被 dpr 縮放，必須以 CSS 像素尺寸清除，而非 canvas.width
+      ctx.clearRect(0, 0, canvasWidth || canvas.width, canvasHeight || canvas.height);
+    }
+
+    function openKanaWritingStudio(item) {
+      STATE.selectedKana = item;
+
+      // Update Kana Header Info
+      document.getElementById('studioKanaDisplay').textContent = item.char;
+      document.getElementById('studioRomajiDisplay').textContent = item.romaji;
+      document.getElementById('studioOriginDisplay').textContent = `字源：${item.hint || '日語假名'}`;
+      document.getElementById('canvasGuideChar').textContent = item.char;
+
+      // Update Mnemonic Visual Card
+      const m = item.mnemonic || {
+        word: item.char,
+        plain: item.char,
+        romaji: item.romaji,
+        meaning: '基礎假名發音',
+        cat: '50音',
+        tip: '在九宮格中一筆一劃練習筆順。',
+        img_removed: '/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+      };
+
+      document.getElementById('mnemonicWordJp').innerHTML = m.word;
+      document.getElementById('mnemonicRomaji').textContent = m.romaji;
+      document.getElementById('mnemonicMeaning').textContent = m.meaning;
+      document.getElementById('mnemonicCategoryTag').textContent = m.cat;
+      document.getElementById('mnemonicTip').textContent = `💡 ${m.tip}`;
+
+      setCardImage(document.getElementById('mnemonicImg'), m.plain, m.meaning, '✏️');
+
+      // Audio triggers
+      document.getElementById('btnPlayMnemonicAudio').onclick = () => playJapaneseAudio(m.plain);
+      document.getElementById('btnPlayStudioKanaAudio').onclick = () => playJapaneseAudio(item.char);
+
+      // Reveal Studio Card & Recalculate Canvas DPI
+      const studio = document.getElementById('kanaWritingStudio');
+      studio.classList.remove('hidden');
+
+      setTimeout(() => {
+        setupCanvasDPI(true);
+        clearCanvas();
+        studio.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+
+      playJapaneseAudio(item.char);
+    }
+
+    function startKanaQuiz() {
+      const modal = document.getElementById('kanaQuizModal');
+      modal.classList.remove('hidden');
+      generateNextQuizQuestion();
+      modal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function generateNextQuizQuestion() {
+      const list = (KANA_DATA[STATE.kanaType][STATE.kanaFilter] || []).filter(k => !k.empty);
+      const container0 = document.getElementById('quizOptionsGrid');
+
+      // 原本資料不足 4 筆就直接 return，畫面會停在空白沒有任何說明
+      if (list.length < 2) {
+        document.getElementById('quizTargetKana').textContent = '—';
+        container0.innerHTML = '';
+        document.getElementById('quizFeedback').innerHTML =
+          '<span class="text-slate-400">此分類資料不足，請先切換上方的假名分類。</span>';
+        return;
+      }
+
+      const target = list[Math.floor(Math.random() * list.length)];
+
+      document.getElementById('quizTargetKana').textContent = target.char;
+      document.getElementById('quizFeedback').textContent = '';
+
+      // 選項數量隨資料量調整（最多 4 個），羅馬字相同者不當作干擾項
+      const distractors = list
+        .filter(k => k.char !== target.char && k.romaji !== target.romaji)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3);
+      const choices = [target, ...distractors].sort(() => 0.5 - Math.random());
+
+      const container = document.getElementById('quizOptionsGrid');
+      container.innerHTML = '';
+
+      choices.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'py-3 px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 hover:border-rose-400 transition';
+        btn.textContent = `${c.romaji}`;
+        
+        btn.onclick = () => {
+          if (c.char === target.char) {
+            btn.classList.add('!bg-emerald-500', '!text-white', '!border-emerald-500');
+            document.getElementById('quizFeedback').innerHTML = `<span class="text-emerald-500"><i class="fa-solid fa-circle-check"></i> 正確！發音為 ${target.romaji}</span>`;
+            playJapaneseAudio(target.char);
+            setTimeout(() => generateNextQuizQuestion(), 900);
+          } else {
+            btn.classList.add('!bg-rose-500', '!text-white', '!border-rose-500');
+            document.getElementById('quizFeedback').innerHTML = `<span class="text-rose-500"><i class="fa-solid fa-circle-xmark"></i> 答錯了，請再試一次！</span>`;
+          }
+        };
+        container.appendChild(btn);
+      });
+
+      document.getElementById('btnQuizPlayAudio').onclick = () => playJapaneseAudio(target.char);
+    }
+
+    /* ==========================================================================
+       3. VOCABULARY DATABASE (VIVID, RELEVANT & HIGH SATURATION PHOTOS)
+       ========================================================================== */
+    const VOCAB_DATA = [
+      // 1. 超商生活 (conv)
+      {
+        id: 'v_bento', level: 'N5', cat: 'conv',
+        word: '<ruby>弁当<rt>べんとう</rt></ruby>', plain: 'お弁当', romaji: 'obentou', meaning: '便當、飯盒', type: '名詞',
+        nuanceTip: '超商結帳必備！店員常詢問「お弁当温めますか？」(便當需要微波加熱嗎？)。',
+        sentenceJp: '<ruby>温<rt>あたた</rt></ruby>かいお<ruby>弁当<rt>べんとう</rt></ruby>を<ruby>買<rt>か</rt></ruby>いました。', sentenceZh: '買了熱騰騰的便當。'
+      },
+      {
+        id: 'v_fukuro', level: 'N5', cat: 'conv',
+        word: '<ruby>袋<rt>ふくろ</rt></ruby>', plain: '袋', romaji: 'fukuro', meaning: '塑膠袋、提袋', type: '名詞',
+        nuanceTip: '日本超商購物袋多需付費(約3~5円)。若不需要可禮貌說「袋は結構です」(不用袋子)。',
+        sentenceJp: '<ruby>袋<rt>ふくろ</rt></ruby>にお<ruby>入<rt>い</rt></ruby>れしましょうか？', sentenceZh: '需要幫您裝進袋子裡嗎？'
+      },
+      {
+        id: 'v_atatamemasu', level: 'N4', cat: 'conv',
+        word: '<ruby>温<rt>あたた</rt></ruby>めます', plain: '温める', romaji: 'atatamemasu', meaning: '加熱、微波加熱', type: '動詞 II組',
+        nuanceTip: '若要主動請店員加熱，可使用「〜てください」句型：「これ、温めてください」。',
+        sentenceJp: 'おにぎりを<ruby>電子<rt>でんし</rt></ruby>レンジで<ruby>温<rt>あたた</rt></ruby>めます。', sentenceZh: '用微波爐加熱飯糰。'
+      },
+
+      // 2. 交通出行 (transit)
+      {
+        id: 'v_kippu', level: 'N5', cat: 'transit',
+        word: '<ruby>切符<rt>きっぷ</rt></ruby>', plain: '切符', romaji: 'kippu', meaning: '車票、乘車券', type: '名詞',
+        nuanceTip: '自動售票機上方會標記「きっぷ」。搭乘新幹線或普通電車皆會使用。',
+        sentenceJp: '<ruby>券売機<rt>けんばいき</rt></ruby>で<ruby>切符<rt>きっぷ</rt></ruby>を<ruby>買<rt>か</rt></ruby>います。', sentenceZh: '在自動售票機購買車票。'
+      },
+      {
+        id: 'v_densha', level: 'N5', cat: 'transit',
+        word: '<ruby>電車<rt>でんしゃ</rt></ruby>', plain: '電車', romaji: 'densha', meaning: '電車、列車', type: '名詞',
+        nuanceTip: '搭車用助詞「に」：電車に乗る；下車用「を」：電車を降りる。',
+        sentenceJp: '<ruby>次<rt>つぎ</rt></ruby>の<ruby>電車<rt>でんしゃ</rt></ruby>は<ruby>何時<rt>なんじ</rt></ruby>に<ruby>来<rt>き</rt></ruby>ますか？', sentenceZh: '下一班電車幾點會來呢？'
+      },
+      {
+        id: 'v_noriba', level: 'N4', cat: 'transit',
+        word: '<ruby>乗<rt>の</rt></ruby>り<ruby>場<rt>ば</rt></ruby>', plain: '乗り場', romaji: 'noriba', meaning: '搭乘處、乘車站牌', type: '名詞',
+        nuanceTip: '常與交通工具結合：バス乗り場(公車站牌)、タクシー乗り場(計程車排班處)。',
+        sentenceJp: 'バスの<ruby>乗<rt>の</rt></ruby>り<ruby>場<rt>ば</rt></ruby>はどちらですか？', sentenceZh: '請問公車搭乘處在何處？'
+      },
+
+      // 3. 餐廳點餐 (food)
+      {
+        id: 'v_ramen', level: 'N5', cat: 'food',
+        word: '<ruby>拉麺<rt>ラーメン</rt></ruby>', plain: 'ラーメン', romaji: 'raamen', meaning: '拉麵', type: '名詞',
+        nuanceTip: '買完食券後，店員常詢問「麺の硬さは？」(麵的硬度？可選：かため/普通)。',
+        sentenceJp: '<ruby>豚骨<rt>とんこつ</rt></ruby>ラーメンを<ruby>一<rt>ひと</rt></ruby>つください。', sentenceZh: '請給我一碗豚骨拉麵。'
+      },
+      {
+        id: 'v_mizu', level: 'N5', cat: 'food',
+        word: 'お<ruby>水<rt>みず</rt></ruby>', plain: 'お水', romaji: 'omizu', meaning: '冰水、開水', type: '名詞',
+        nuanceTip: '日本餐廳預設奉送冰水(お冷)。續杯時可說「お水のおかわりをください」。',
+        sentenceJp: 'すみません、お<ruby>水<rt>みず</rt></ruby>のお<ruby>替<rt>か</rt></ruby>わりをください。', sentenceZh: '不好意思，請幫我續杯水。'
+      },
+      {
+        id: 'v_kaikei', level: 'N4', cat: 'food',
+        word: 'お<ruby>会計<rt>かいけい</rt></ruby>', plain: 'お会計', romaji: 'okaikei', meaning: '結帳、買單', type: '名詞',
+        nuanceTip: '吃飽後舉手向服務生示意：「お会計お願いします」(請結帳)。',
+        sentenceJp: 'お<ruby>会計<rt>かいけい</rt></ruby>は<ruby>別々<rt>べつべつ</rt></ruby>にお<ruby>願<rt>ねが</rt></ruby>いできますか？', sentenceZh: '結帳可以幫我們分開付嗎？'
+      },
+
+      // 4. 飯店住宿 (hotel)
+      {
+        id: 'v_onsen', level: 'N5', cat: 'hotel',
+        word: '<ruby>温泉<rt>おんせん</rt></ruby>', plain: '温泉', romaji: 'onsen', meaning: '溫泉', type: '名詞',
+        nuanceTip: '進入溫泉浴池前務必先將身體洗淨；露天溫泉稱為「露天風呂」(ろてんぶろ)。',
+        sentenceJp: 'このホテルには<ruby>天然<rt>てんねん</rt></ruby><ruby>温泉<rt>おんせん</rt></ruby>があります。', sentenceZh: '這家飯店附設有天然溫泉。'
+      },
+      {
+        id: 'v_azukeru', level: 'N4', cat: 'hotel',
+        word: '<ruby>預<rt>あず</rt></ruby>けます', plain: '預ける', romaji: 'azukemasu', meaning: '寄放、寄存(行李)', type: '動詞 II組',
+        nuanceTip: '太早抵達飯店時實用金句：「荷物を預かってもらえますか？」(能幫我保管行李嗎？)。',
+        sentenceJp: 'チェックインまで<ruby>荷物<rt>にもつ</rt></ruby>を<ruby>預<rt>あず</rt></ruby>けられますか？', sentenceZh: '在辦理入住前可以寄放行李嗎？'
+      },
+
+      // 5. 數字金錢 (numbers)
+      {
+        id: 'v_okane', level: 'N5', cat: 'numbers',
+        word: 'お<ruby>金<rt>かね</rt></ruby>', plain: 'お金', romaji: 'okane', meaning: '金錢、錢', type: '名詞',
+        nuanceTip: '在日本常稱日圓為「円」(えん)；硬幣為「小銭」(こぜに)。',
+        sentenceJp: 'お<ruby>金<rt>かね</rt></ruby>を<ruby>銀行<rt>ぎんこう</rt></ruby>で<ruby>両替<rt>りょうがえ</rt></ruby>します。', sentenceZh: '在銀行兌換外幣金錢。'
+      },
+      {
+        id: 'v_ikura', level: 'N5', cat: 'numbers',
+        word: 'いくら', plain: 'いくら', romaji: 'ikura', meaning: '多少錢', type: '疑問詞',
+        nuanceTip: '逛街購物問價錢最強必殺句：「これはいくらですか？」(這個多少錢？)。',
+        sentenceJp: 'このお<ruby>土産<rt>みやげ</rt></ruby>はいくらですか？', sentenceZh: '這個伴手禮是多少錢呢？'
+      },
+
+      // 6. 顏色外觀 (colors)
+      {
+        id: 'v_akai', level: 'N5', cat: 'colors',
+        word: '<ruby>赤<rt>あか</rt></ruby>い', plain: '赤い', romaji: 'akai', meaning: '紅色的', type: 'い形容詞',
+        nuanceTip: '京都伏見稻荷大社鮮豔朱紅色的鳥居正是最佳代表（赤い鳥居）。',
+        sentenceJp: '<ruby>赤<rt>あか</rt></ruby>い鳥居がとても<ruby>綺麗<rt>きれい</rt></ruby>です。', sentenceZh: '紅色的鳥居非常美麗。'
+      },
+      {
+        id: 'v_aoi', level: 'N5', cat: 'colors',
+        word: '<ruby>青<rt>あお</rt></ruby>い', plain: '青い', romaji: 'aoi', meaning: '藍色的、碧藍的', type: 'い形容詞',
+        nuanceTip: '沖繩晴朗純淨的蔚藍大海與藍天（青い海と青い空）。',
+        sentenceJp: '<ruby>青<rt>あお</rt></ruby>い<ruby>空<rt>そら</rt></ruby>と<ruby>海<rt>うみ</rt></ruby>が<ruby>広<rt>ひろ</rt></ruby>がっています。', sentenceZh: '蔚藍的天空與大海綿延展開。'
+      },
+
+      // 7. 日常天氣 (weather)
+      {
+        id: 'v_tenki', level: 'N5', cat: 'weather',
+        word: 'お<ruby>天気<rt>てんき</rt></ruby>', plain: '天気', romaji: 'otenki', meaning: '天氣、好天氣', type: '名詞',
+        nuanceTip: '見面寒暄聊天開場白：「今日はお天気がいいですね」(今天天氣真好呢)。',
+        sentenceJp: '<ruby>明日<rt>あした</rt></ruby>のお<ruby>天気<rt>てんき</rt></ruby>はどうでしょうか？', sentenceZh: '明天的天氣會是如何呢？'
+      },
+
+      // 8. 身體健康 (health)
+      {
+        id: 'v_kusuri', level: 'N5', cat: 'health',
+        word: '<ruby>薬<rt>くすり</rt></ruby>', plain: '薬', romaji: 'kusuri', meaning: '藥物、藥品', type: '名詞',
+        nuanceTip: '吃藥日語動詞不使用「食べる」，固定使用「薬を飲む」(喝/吞藥)。',
+        sentenceJp: '<ruby>風邪<rt>かぜ</rt></ruby>の<ruby>薬<rt>くすり</rt></ruby>を<ruby>飲<rt>の</rt></ruby>んで<ruby>休<rt>やす</rt></ruby>みます。', sentenceZh: '吃了感冒藥後好好休息。'
+      },
+
+      // 9. 時間日期 (time)
+      {
+        id: 'v_ima', level: 'N5', cat: 'time',
+        word: '<ruby>今<rt>いま</rt></ruby>', plain: '今', romaji: 'ima', meaning: '現在、如今', type: '名詞/副詞',
+        nuanceTip: '問現在時間必備句：「今、何時ですか？」(現在幾點了？)。',
+        sentenceJp: '<ruby>今<rt>いま</rt></ruby>、ちょうど<ruby>午前<rt>ごぜん</rt></ruby>１０<ruby>時<rt>じ</rt></ruby>です。', sentenceZh: '現在剛好是上午十點整。'
+      },
+
+      // ===== 擴充單字（購物藥妝 / 日常動作 / 人物 / 形容詞 等） =====
+      {
+        id: 'v_onigiri', level: 'N5', cat: 'conv',
+        word: 'お<ruby>握<rt>にぎ</rt></ruby>り', plain: 'おにぎり', romaji: 'onigiri', meaning: '飯糰', type: '名詞',
+        nuanceTip: '超商主食首選。口味標示在包裝上：鮭(さけ)、梅(うめ)、ツナマヨ。',
+        sentenceJp: 'このおにぎりも<ruby>温<rt>あたた</rt></ruby>めてください。', sentenceZh: '這個飯糰也請幫我加熱。'
+      },
+      {
+        id: 'v_reshiito', level: 'N5', cat: 'conv',
+        word: 'レシート', plain: 'レシート', romaji: 'reshiito', meaning: '收據、發票', type: '名詞',
+        nuanceTip: '要收據說「レシートをください」；不用則說「レシートは大丈夫です」。',
+        sentenceJp: 'レシートをください。', sentenceZh: '請給我收據。'
+      },
+      {
+        id: 'v_ohashi', level: 'N5', cat: 'conv',
+        word: 'お<ruby>箸<rt>はし</rt></ruby>', plain: 'お箸', romaji: 'ohashi', meaning: '筷子', type: '名詞',
+        nuanceTip: '店員會問「お箸はおつけしますか？」(需要附筷子嗎？)。',
+        sentenceJp: 'お<ruby>箸<rt>はし</rt></ruby>を２<ruby>膳<rt>ぜん</rt></ruby>お<ruby>願<rt>ねが</rt></ruby>いします。', sentenceZh: '請給我兩雙筷子。'
+      },
+      {
+        id: 'v_norikae', level: 'N4', cat: 'transit',
+        word: '<ruby>乗<rt>の</rt></ruby>り<ruby>換<rt>か</rt></ruby>え', plain: '乗り換え', romaji: 'norikae', meaning: '轉乘、換車', type: '名詞',
+        nuanceTip: '東京轉乘必備。動詞形：乗り換えます。',
+        sentenceJp: '<ruby>新宿<rt>しんじゅく</rt></ruby>で<ruby>乗<rt>の</rt></ruby>り<ruby>換<rt>か</rt></ruby>えてください。', sentenceZh: '請在新宿轉乘。'
+      },
+      {
+        id: 'v_kaisatsu', level: 'N4', cat: 'transit',
+        word: '<ruby>改札口<rt>かいさつぐち</rt></ruby>', plain: '改札口', romaji: 'kaisatsuguchi', meaning: '剪票口', type: '名詞',
+        nuanceTip: '約人見面常說「東口の改札口で」(在東口剪票口)。',
+        sentenceJp: '<ruby>改札口<rt>かいさつぐち</rt></ruby>はどこですか？', sentenceZh: '請問剪票口在哪裡？'
+      },
+      {
+        id: 'v_shinkansen', level: 'N5', cat: 'transit',
+        word: '<ruby>新幹線<rt>しんかんせん</rt></ruby>', plain: '新幹線', romaji: 'shinkansen', meaning: '新幹線', type: '名詞',
+        nuanceTip: '座位分「自由席」與「指定席」(していせき)，後者需劃位。',
+        sentenceJp: '<ruby>新幹線<rt>しんかんせん</rt></ruby>で<ruby>京都<rt>きょうと</rt></ruby>へ<ruby>行<rt>い</rt></ruby>きます。', sentenceZh: '搭新幹線去京都。'
+      },
+      {
+        id: 'v_shuuden', level: 'N4', cat: 'transit',
+        word: '<ruby>終電<rt>しゅうでん</rt></ruby>', plain: '終電', romaji: 'shuuden', meaning: '末班電車', type: '名詞',
+        nuanceTip: '日本末班車多在零點前後，錯過只能搭計程車。',
+        sentenceJp: '<ruby>終電<rt>しゅうでん</rt></ruby>は<ruby>何時<rt>なんじ</rt></ruby>ですか？', sentenceZh: '末班電車是幾點呢？'
+      },
+      {
+        id: 'v_chuumon', level: 'N4', cat: 'food',
+        word: '<ruby>注文<rt>ちゅうもん</rt></ruby>', plain: '注文', romaji: 'chuumon', meaning: '點餐、訂購', type: '名詞/動詞',
+        nuanceTip: '店員會說「ご注文はお決まりですか？」(決定好要點什麼了嗎？)。',
+        sentenceJp: 'ご<ruby>注文<rt>ちゅうもん</rt></ruby>をお<ruby>願<rt>ねが</rt></ruby>いします。', sentenceZh: '麻煩幫我點餐。'
+      },
+      {
+        id: 'v_yoyaku', level: 'N4', cat: 'food',
+        word: '<ruby>予約<rt>よやく</rt></ruby>', plain: '予約', romaji: 'yoyaku', meaning: '預約', type: '名詞/動詞',
+        nuanceTip: '訂位、訂房通用。動詞：予約します。',
+        sentenceJp: '<ruby>七時<rt>しちじ</rt></ruby>に２<ruby>名<rt>めい</rt></ruby>で<ruby>予約<rt>よやく</rt></ruby>したいです。', sentenceZh: '想預約七點兩位。'
+      },
+      {
+        id: 'v_osusume', level: 'N4', cat: 'food',
+        word: 'おすすめ', plain: 'おすすめ', romaji: 'osusume', meaning: '推薦', type: '名詞',
+        nuanceTip: '不知道點什麼時的萬用句：「おすすめは何ですか？」。',
+        sentenceJp: 'お<ruby>店<rt>みせ</rt></ruby>のおすすめは<ruby>何<rt>なん</rt></ruby>ですか？', sentenceZh: '店裡推薦的是什麼呢？'
+      },
+      {
+        id: 'v_mochikaeri', level: 'N4', cat: 'food',
+        word: '<ruby>持<rt>も</rt></ruby>ち<ruby>帰<rt>かえ</rt></ruby>り', plain: '持ち帰り', romaji: 'mochikaeri', meaning: '外帶', type: '名詞',
+        nuanceTip: '速食店會問「店内でお召し上がりですか、お持ち帰りですか？」(內用還是外帶？)。',
+        sentenceJp: '<ruby>持<rt>も</rt></ruby>ち<ruby>帰<rt>かえ</rt></ruby>りでお<ruby>願<rt>ねが</rt></ruby>いします。', sentenceZh: '麻煩幫我外帶。'
+      },
+      {
+        id: 'v_kin_en', level: 'N4', cat: 'food',
+        word: '<ruby>禁煙席<rt>きんえんせき</rt></ruby>', plain: '禁煙席', romaji: 'kin-enseki', meaning: '禁菸座位', type: '名詞',
+        nuanceTip: '入座前店員常問「禁煙席と喫煙席、どちらになさいますか？」。',
+        sentenceJp: '<ruby>禁煙席<rt>きんえんせき</rt></ruby>をお<ruby>願<rt>ねが</rt></ruby>いします。', sentenceZh: '麻煩給我禁菸座位。'
+      },
+      {
+        id: 'v_chekkuauto', level: 'N5', cat: 'hotel',
+        word: 'チェックアウト', plain: 'チェックアウト', romaji: 'chekkuauto', meaning: '退房', type: '名詞',
+        nuanceTip: '退房時間多為上午10~11點，可問「チェックアウトは何時までですか？」。',
+        sentenceJp: 'チェックアウトは１１<ruby>時<rt>じ</rt></ruby>までです。', sentenceZh: '退房時間到十一點。'
+      },
+      {
+        id: 'v_choushoku', level: 'N5', cat: 'hotel',
+        word: '<ruby>朝食<rt>ちょうしょく</rt></ruby>', plain: '朝食', romaji: 'choushoku', meaning: '早餐', type: '名詞',
+        nuanceTip: '日系飯店常見「朝食付き」(附早餐)、「朝食なし」(不附早餐)。',
+        sentenceJp: '<ruby>朝食<rt>ちょうしょく</rt></ruby>は<ruby>何時<rt>なんじ</rt></ruby>からですか？', sentenceZh: '早餐從幾點開始？'
+      },
+      {
+        id: 'v_yukata', level: 'N4', cat: 'hotel',
+        word: '<ruby>浴衣<rt>ゆかた</rt></ruby>', plain: '浴衣', romaji: 'yukata', meaning: '浴衣', type: '名詞',
+        nuanceTip: '溫泉旅館房內會備浴衣，穿法一律左襟在上。',
+        sentenceJp: '<ruby>浴衣<rt>ゆかた</rt></ruby>を<ruby>着<rt>き</rt></ruby>て<ruby>温泉<rt>おんせん</rt></ruby>へ<ruby>行<rt>い</rt></ruby>きます。', sentenceZh: '穿著浴衣去泡溫泉。'
+      },
+      {
+        id: 'v_waribiki', level: 'N4', cat: 'numbers',
+        word: '<ruby>割引<rt>わりびき</rt></ruby>', plain: '割引', romaji: 'waribiki', meaning: '折扣', type: '名詞',
+        nuanceTip: '日本的「２割引」是打八折，與中文折扣算法相反，務必注意。',
+        sentenceJp: 'この<ruby>商品<rt>しょうひん</rt></ruby>は３<ruby>割引<rt>わりびき</rt></ruby>です。', sentenceZh: '這個商品打七折。'
+      },
+      {
+        id: 'v_zeikomi', level: 'N4', cat: 'numbers',
+        word: '<ruby>税込<rt>ぜいこ</rt></ruby>み', plain: '税込み', romaji: 'zeikomi', meaning: '含稅', type: '名詞',
+        nuanceTip: '標價會分「税込」與「税抜」(ぜいぬき，未稅)，結帳金額差 10%。',
+        sentenceJp: 'この<ruby>値段<rt>ねだん</rt></ruby>は<ruby>税込<rt>ぜいこ</rt></ruby>みですか？', sentenceZh: '這個價格是含稅的嗎？'
+      },
+      {
+        id: 'v_shiroi', level: 'N5', cat: 'colors',
+        word: '<ruby>白<rt>しろ</rt></ruby>い', plain: '白い', romaji: 'shiroi', meaning: '白色的', type: 'い形容詞',
+        nuanceTip: '名詞形是「白」(しろ)；「白いシャツ」＝白襯衫。',
+        sentenceJp: '<ruby>白<rt>しろ</rt></ruby>い<ruby>雪<rt>ゆき</rt></ruby>が<ruby>降<rt>ふ</rt></ruby>っています。', sentenceZh: '正下著白雪。'
+      },
+      {
+        id: 'v_kuroi', level: 'N5', cat: 'colors',
+        word: '<ruby>黒<rt>くろ</rt></ruby>い', plain: '黒い', romaji: 'kuroi', meaning: '黑色的', type: 'い形容詞',
+        nuanceTip: '買衣服實用句：「黒いのはありますか？」(有黑色的嗎？)。',
+        sentenceJp: '<ruby>黒<rt>くろ</rt></ruby>いかばんを<ruby>買<rt>か</rt></ruby>いました。', sentenceZh: '買了黑色的包包。'
+      },
+      {
+        id: 'v_ame', level: 'N5', cat: 'weather',
+        word: '<ruby>雨<rt>あめ</rt></ruby>', plain: '雨', romaji: 'ame', meaning: '雨', type: '名詞',
+        nuanceTip: '下雨用「雨が降る」(あめがふる)，不用「する」。',
+        sentenceJp: '<ruby>明日<rt>あした</rt></ruby>は<ruby>雨<rt>あめ</rt></ruby>が<ruby>降<rt>ふ</rt></ruby>るでしょう。', sentenceZh: '明天應該會下雨吧。'
+      },
+      {
+        id: 'v_atsui', level: 'N5', cat: 'weather',
+        word: '<ruby>暑<rt>あつ</rt></ruby>い', plain: '暑い', romaji: 'atsui', meaning: '炎熱的', type: 'い形容詞',
+        nuanceTip: '氣溫熱用「暑い」，東西燙用「熱い」(同音不同字)。',
+        sentenceJp: '<ruby>東京<rt>とうきょう</rt></ruby>の<ruby>夏<rt>なつ</rt></ruby>はとても<ruby>暑<rt>あつ</rt></ruby>いです。', sentenceZh: '東京的夏天非常熱。'
+      },
+      {
+        id: 'v_samui', level: 'N5', cat: 'weather',
+        word: '<ruby>寒<rt>さむ</rt></ruby>い', plain: '寒い', romaji: 'samui', meaning: '寒冷的', type: 'い形容詞',
+        nuanceTip: '天氣冷用「寒い」，摸起來冰用「冷たい」(つめたい)。',
+        sentenceJp: '<ruby>北海道<rt>ほっかいどう</rt></ruby>の<ruby>冬<rt>ふゆ</rt></ruby>は<ruby>寒<rt>さむ</rt></ruby>いです。', sentenceZh: '北海道的冬天很冷。'
+      },
+      {
+        id: 'v_kaze', level: 'N5', cat: 'health',
+        word: '<ruby>風邪<rt>かぜ</rt></ruby>', plain: '風邪', romaji: 'kaze', meaning: '感冒', type: '名詞',
+        nuanceTip: '「風邪をひく」＝感冒；與「風」(かぜ，風)同音不同義。',
+        sentenceJp: '<ruby>風邪<rt>かぜ</rt></ruby>をひいてしまいました。', sentenceZh: '不小心感冒了。'
+      },
+      {
+        id: 'v_itai', level: 'N5', cat: 'health',
+        word: '<ruby>痛<rt>いた</rt></ruby>い', plain: '痛い', romaji: 'itai', meaning: '痛的', type: 'い形容詞',
+        nuanceTip: '看醫生時指著部位說「ここが痛いです」最快。',
+        sentenceJp: 'お<ruby>腹<rt>なか</rt></ruby>が<ruby>痛<rt>いた</rt></ruby>いです。', sentenceZh: '肚子痛。'
+      },
+      {
+        id: 'v_shuumatsu', level: 'N5', cat: 'time',
+        word: '<ruby>週末<rt>しゅうまつ</rt></ruby>', plain: '週末', romaji: 'shuumatsu', meaning: '週末', type: '名詞',
+        nuanceTip: '約人常用：「週末、一緒に行きませんか？」(週末要不要一起去？)。',
+        sentenceJp: '<ruby>週末<rt>しゅうまつ</rt></ruby>はいつも<ruby>勉強<rt>べんきょう</rt></ruby>します。', sentenceZh: '週末總是在念書。'
+      },
+      {
+        id: 'v_raishuu', level: 'N5', cat: 'time',
+        word: '<ruby>来週<rt>らいしゅう</rt></ruby>', plain: '来週', romaji: 'raishuu', meaning: '下週', type: '名詞',
+        nuanceTip: '一組記：先週(せんしゅう)・今週(こんしゅう)・来週(らいしゅう)。',
+        sentenceJp: '<ruby>来週<rt>らいしゅう</rt></ruby><ruby>日本<rt>にほん</rt></ruby>へ<ruby>行<rt>い</rt></ruby>きます。', sentenceZh: '下週要去日本。'
+      },
+      {
+        id: 'v_gogo', level: 'N5', cat: 'time',
+        word: '<ruby>午後<rt>ごご</rt></ruby>', plain: '午後', romaji: 'gogo', meaning: '下午', type: '名詞',
+        nuanceTip: '上午是「午前」(ごぜん)；日本口語也常用24小時制報時。',
+        sentenceJp: '<ruby>午後<rt>ごご</rt></ruby>３<ruby>時<rt>じ</rt></ruby>に<ruby>会<rt>あ</rt></ruby>いましょう。', sentenceZh: '下午三點見面吧。'
+      },
+      {
+        id: 'v_dorakku', level: 'N4', cat: 'shop',
+        word: 'ドラッグストア', plain: 'ドラッグストア', romaji: 'doraggusutoa', meaning: '藥妝店', type: '名詞',
+        nuanceTip: '松本清等連鎖店招牌多寫「ドラッグ」；處方藥才去「薬局」(やっきょく)。',
+        sentenceJp: 'ドラッグストアで<ruby>薬<rt>くすり</rt></ruby>を<ruby>買<rt>か</rt></ruby>います。', sentenceZh: '在藥妝店買藥。'
+      },
+      {
+        id: 'v_menzei', level: 'N4', cat: 'shop',
+        word: '<ruby>免税<rt>めんぜい</rt></ruby>', plain: '免税', romaji: 'menzei', meaning: '免稅', type: '名詞',
+        nuanceTip: '辦免稅需出示護照；店員會問「パスポートをお持ちですか？」。',
+        sentenceJp: '<ruby>免税<rt>めんぜい</rt></ruby>にできますか？', sentenceZh: '可以辦免稅嗎？'
+      },
+      {
+        id: 'v_shichaku', level: 'N4', cat: 'shop',
+        word: '<ruby>試着<rt>しちゃく</rt></ruby>', plain: '試着', romaji: 'shichaku', meaning: '試穿', type: '名詞/動詞',
+        nuanceTip: '試衣間是「試着室」(しちゃくしつ)。',
+        sentenceJp: 'これ、<ruby>試着<rt>しちゃく</rt></ruby>してもいいですか？', sentenceZh: '這個可以試穿嗎？'
+      },
+      {
+        id: 'v_omiyage', level: 'N5', cat: 'shop',
+        word: 'お<ruby>土産<rt>みやげ</rt></ruby>', plain: 'お土産', romaji: 'omiyage', meaning: '伴手禮', type: '名詞',
+        nuanceTip: '車站的「駅弁」與「お土産売り場」是挑伴手禮的好地方。',
+        sentenceJp: '<ruby>会社<rt>かいしゃ</rt></ruby>のみんなにお<ruby>土産<rt>みやげ</rt></ruby>を<ruby>買<rt>か</rt></ruby>います。', sentenceZh: '買伴手禮給公司同事。'
+      },
+      {
+        id: 'v_okimasu', level: 'N5', cat: 'daily',
+        word: '<ruby>起<rt>お</rt></ruby>きます', plain: '起きる', romaji: 'okimasu', meaning: '起床', type: '動詞 II組',
+        nuanceTip: '「起きます」是起床，「立ちます」才是站起來。',
+        sentenceJp: '<ruby>毎朝<rt>まいあさ</rt></ruby>６<ruby>時<rt>じ</rt></ruby>に<ruby>起<rt>お</rt></ruby>きます。', sentenceZh: '每天早上六點起床。'
+      },
+      {
+        id: 'v_wasuremasu', level: 'N4', cat: 'daily',
+        word: '<ruby>忘<rt>わす</rt></ruby>れます', plain: '忘れる', romaji: 'wasuremasu', meaning: '忘記、遺忘', type: '動詞 II組',
+        nuanceTip: '東西忘在車上：「電車に忘れ物をしました」(忘れ物＝遺失物)。',
+        sentenceJp: 'パスポートを<ruby>忘<rt>わす</rt></ruby>れないでください。', sentenceZh: '請不要忘記護照。'
+      },
+      {
+        id: 'v_isogimasu', level: 'N4', cat: 'daily',
+        word: '<ruby>急<rt>いそ</rt></ruby>ぎます', plain: '急ぐ', romaji: 'isogimasu', meaning: '趕緊、急忙', type: '動詞 I組',
+        nuanceTip: '「急いでください」＝請快一點；車站廣播也常聽到「お急ぎください」。',
+        sentenceJp: '<ruby>終電<rt>しゅうでん</rt></ruby>ですから、<ruby>急<rt>いそ</rt></ruby>ぎましょう。', sentenceZh: '因為是末班車，我們快一點吧。'
+      },
+      {
+        id: 'v_sagashimasu', level: 'N4', cat: 'daily',
+        word: '<ruby>探<rt>さが</rt></ruby>します', plain: '探す', romaji: 'sagashimasu', meaning: '尋找', type: '動詞 I組',
+        nuanceTip: '問路前的鋪陳：「この店を探しているんですが…」(我在找這家店…)。',
+        sentenceJp: 'この<ruby>住所<rt>じゅうしょ</rt></ruby>を<ruby>探<rt>さが</rt></ruby>しています。', sentenceZh: '我正在找這個地址。'
+      },
+      {
+        id: 'v_kazoku', level: 'N5', cat: 'people',
+        word: '<ruby>家族<rt>かぞく</rt></ruby>', plain: '家族', romaji: 'kazoku', meaning: '家人、家族', type: '名詞',
+        nuanceTip: '講自己家人用謙稱(父・母)，講對方家人用敬稱(お父さん・お母さん)。',
+        sentenceJp: '<ruby>家族<rt>かぞく</rt></ruby>と<ruby>一緒<rt>いっしょ</rt></ruby>に<ruby>旅行<rt>りょこう</rt></ruby>します。', sentenceZh: '和家人一起旅行。'
+      },
+      {
+        id: 'v_ten_in', level: 'N5', cat: 'people',
+        word: '<ruby>店員<rt>てんいん</rt></ruby>', plain: '店員', romaji: 'ten-in', meaning: '店員', type: '名詞',
+        nuanceTip: '叫住店員用「すみません」，不要直接喊「店員さん」。',
+        sentenceJp: '<ruby>店員<rt>てんいん</rt></ruby>さんに<ruby>聞<rt>き</rt></ruby>いてみます。', sentenceZh: '我問問看店員。'
+      },
+      {
+        id: 'v_tomodachi', level: 'N5', cat: 'people',
+        word: '<ruby>友達<rt>ともだち</rt></ruby>', plain: '友達', romaji: 'tomodachi', meaning: '朋友', type: '名詞',
+        nuanceTip: '複數不加す；要強調多位可說「友達たち」但較少用。',
+        sentenceJp: '<ruby>友達<rt>ともだち</rt></ruby>と<ruby>沖縄<rt>おきなわ</rt></ruby>へ<ruby>行<rt>い</rt></ruby>きました。', sentenceZh: '和朋友去了沖繩。'
+      },
+      {
+        id: 'v_benri', level: 'N4', cat: 'adj',
+        word: '<ruby>便利<rt>べんり</rt></ruby>', plain: '便利', romaji: 'benri', meaning: '方便的', type: 'な形容詞',
+        nuanceTip: 'な形容詞，接名詞要加な：「便利な電車」。',
+        sentenceJp: '<ruby>日本<rt>にほん</rt></ruby>の<ruby>電車<rt>でんしゃ</rt></ruby>はとても<ruby>便利<rt>べんり</rt></ruby>です。', sentenceZh: '日本的電車非常方便。'
+      },
+      {
+        id: 'v_shizuka', level: 'N4', cat: 'adj',
+        word: '<ruby>静<rt>しず</rt></ruby>か', plain: '静か', romaji: 'shizuka', meaning: '安靜的', type: 'な形容詞',
+        nuanceTip: '電車內的禮儀用語：「車内ではお静かに」。',
+        sentenceJp: 'この<ruby>部屋<rt>へや</rt></ruby>は<ruby>静<rt>しず</rt></ruby>かですね。', sentenceZh: '這個房間很安靜呢。'
+      },
+      {
+        id: 'v_taihen', level: 'N4', cat: 'adj',
+        word: '<ruby>大変<rt>たいへん</rt></ruby>', plain: '大変', romaji: 'taihen', meaning: '辛苦的、不得了', type: 'な形容詞/副詞',
+        nuanceTip: '兩用：當副詞是「非常」(大変おいしい)，當形容詞是「辛苦」。',
+        sentenceJp: '<ruby>仕事<rt>しごと</rt></ruby>が<ruby>大変<rt>たいへん</rt></ruby>でした。', sentenceZh: '工作很辛苦。'
+      },
+      {
+        id: 'v_tanoshii', level: 'N5', cat: 'adj',
+        word: '<ruby>楽<rt>たの</rt></ruby>しい', plain: '楽しい', romaji: 'tanoshii', meaning: '快樂的、有趣的', type: 'い形容詞',
+        nuanceTip: '「楽しかったです」是過去式，旅行結束後的萬用感想。',
+        sentenceJp: '<ruby>旅行<rt>りょこう</rt></ruby>はとても<ruby>楽<rt>たの</rt></ruby>しかったです。', sentenceZh: '旅行非常愉快。'
+      }    ];
+
+    /* ----------------------------------------------------------------------
+       SRS：原本只記錄 rating，按鈕上寫的「10分鐘 / 明天 / 3天後」其實沒有實作。
+       這裡補上真正的到期時間與排序：到期 > 沒學過 > 還沒到期。
+       ---------------------------------------------------------------------- */
+    const SRS_INTERVALS = {
+      hard: 10 * 60 * 1000,
+      good: 24 * 60 * 60 * 1000,
+      easy: 3 * 24 * 60 * 60 * 1000
+    };
+
+    function srsDueAt(id) {
+      const s = STATE.srsStats[id];
+      if (!s) return null;
+      // 相容舊資料：只有 lastReviewed 時依 rating 推算
+      return s.due || ((s.lastReviewed || 0) + (SRS_INTERVALS[s.rating] || 0));
+    }
+
+    function srsPriority(item) {
+      const due = srsDueAt(item.id);
+      if (due === null) return 1;                 // 還沒學過
+      return due <= Date.now() ? 0 : 2;           // 已到期 / 尚未到期
+    }
+
+    function matchesFilter(item) {
+      const matchLevel = (STATE.vocabLevel === 'all') || (item.level === STATE.vocabLevel);
+      const matchCat = (STATE.vocabCat === 'all') || (item.cat === STATE.vocabCat);
+      return matchLevel && matchCat;
+    }
+
+    // 排序後的檢視清單。只在切換篩選時重建，評分當下不重排，避免卡片順序跳動。
+    let VOCAB_VIEW = [];
+    function rebuildVocabView() {
+      VOCAB_VIEW = VOCAB_DATA.filter(matchesFilter).sort((a, b) => {
+        const d = srsPriority(a) - srsPriority(b);
+        if (d !== 0) return d;
+        return (srsDueAt(a.id) || 0) - (srsDueAt(b.id) || 0);
+      });
+      if (STATE.vocabIndex >= VOCAB_VIEW.length) STATE.vocabIndex = 0;
+    }
+
+    function getFilteredVocab() {
+      return VOCAB_VIEW;
+    }
+
+    function updateDueBadge() {
+      const badge = document.getElementById('srsDueBadge');
+      if (!badge) return;
+      const dueCount = VOCAB_DATA.filter(v => {
+        const due = srsDueAt(v.id);
+        return due !== null && due <= Date.now();
+      }).length;
+      const unseen = VOCAB_DATA.filter(v => srsDueAt(v.id) === null).length;
+      badge.textContent = `待複習 ${dueCount} ・ 未學 ${unseen}`;
+    }
+
+    function renderCategoryTabs() {
+      const container = document.getElementById('vocabCategoryList');
+      container.innerHTML = '';
+
+      CATEGORIES.forEach(cat => {
+        const count = VOCAB_DATA.filter(v => {
+          const matchLevel = (STATE.vocabLevel === 'all') || (v.level === STATE.vocabLevel);
+          const matchCat = (cat.key === 'all') || (v.cat === cat.key);
+          return matchLevel && matchCat;
+        }).length;
+
+        const isSelected = (STATE.vocabCat === cat.key);
+        const btn = document.createElement('button');
+        btn.className = `vocab-cat-btn px-3 py-1.5 rounded-xl whitespace-nowrap font-semibold transition flex items-center gap-1.5 shrink-0 ${
+          isSelected 
+            ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900 shadow-sm' 
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+        }`;
+        
+        btn.innerHTML = `
+          <span>${cat.icon} ${cat.name}</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-rose-200 text-rose-800 dark:bg-rose-900 dark:text-rose-200' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'} font-bold">
+            ${count}
+          </span>
+        `;
+
+        btn.onclick = () => {
+          STATE.vocabCat = cat.key;
+          STATE.vocabIndex = 0;
+          rebuildVocabView();
+          renderCategoryTabs();
+          renderVocabCard();
+        };
+
+        container.appendChild(btn);
+      });
+    }
+
+    function renderVocabCard() {
+      const list = getFilteredVocab();
+      const counterEl = document.getElementById('vocabCounter');
+      const inner = document.getElementById('flashcardInner');
+
+      if (list.length === 0) {
+        counterEl.textContent = '0 / 0';
+        document.getElementById('fcWord').innerHTML = '無相符單字';
+        document.getElementById('fcRomaji').textContent = '';
+        document.getElementById('fcMeaning').textContent = '請切換上方篩選條件';
+        return;
+      }
+
+      if (STATE.vocabIndex >= list.length) STATE.vocabIndex = 0;
+      if (STATE.vocabIndex < 0) STATE.vocabIndex = list.length - 1;
+      const current = list[STATE.vocabIndex];
+
+      const dueTs = srsDueAt(current.id);
+      const dueMark = (dueTs !== null && dueTs <= Date.now()) ? ' ・待複習' : '';
+      counterEl.textContent = `卡片 ${STATE.vocabIndex + 1} / ${list.length}${dueMark}`;
+      updateDueBadge();
+
+      // 換卡時回到正面：先關掉翻轉動畫，否則會看到背面內容邊翻邊換字
+      STATE.isCardFlipped = false;
+      if (inner.classList.contains('flipped')) {
+        inner.style.transition = 'none';
+        inner.classList.remove('flipped');
+        void inner.offsetWidth; // 強制 reflow 後恢復動畫
+        inner.style.transition = '';
+      }
+
+      document.getElementById('fcTagLevel').textContent = `${current.level} • ${getCatName(current.cat)}`;
+      document.getElementById('fcCardCategoryName').textContent = getCatName(current.cat);
+      
+      setCardImage(document.getElementById('fcImage'),
+        STATE.recallMode ? '？' : current.plain,
+        STATE.recallMode ? '先想想日語怎麼說' : current.meaning,
+        catEmoji(current.cat));
+
+      document.getElementById('fcWord').innerHTML = current.word;
+      document.getElementById('fcRomaji').textContent = current.romaji;
+
+      const maskEl = document.getElementById('fcRecallMask');
+      if (STATE.recallMode) {
+        maskEl.classList.remove('hidden');
+      } else {
+        maskEl.classList.add('hidden');
+      }
+
+      document.getElementById('fcBackWordSummary').textContent = current.plain;
+      document.getElementById('fcWordType').textContent = current.type;
+      document.getElementById('fcMeaning').textContent = current.meaning;
+      document.getElementById('fcNuanceTip').textContent = `💡 ${current.nuanceTip}`;
+      document.getElementById('fcSentenceJp').innerHTML = current.sentenceJp;
+      document.getElementById('fcSentenceZh').textContent = current.sentenceZh;
+
+      document.getElementById('fcAudioFront').onclick = (e) => {
+        e.stopPropagation();
+        playJapaneseAudio(current.plain);
+      };
+      document.getElementById('fcAudioBackWord').onclick = (e) => {
+        e.stopPropagation();
+        playJapaneseAudio(current.plain);
+      };
+      document.getElementById('fcSentenceAudio').onclick = (e) => {
+        e.stopPropagation();
+        playJapaneseAudio(current.sentenceJp);
+      };
+    }
+
+    function getCatName(catKey) {
+      const found = CATEGORIES.find(c => c.key === catKey);
+      return found ? found.name : '生活情境';
+    }
+
+    function handleSRS(rating) {
+      const list = getFilteredVocab();
+      if (!list.length) return;
+      const current = list[STATE.vocabIndex];
+      
+      const now = Date.now();
+      STATE.srsStats[current.id] = {
+        rating,
+        lastReviewed: now,
+        due: now + SRS_INTERVALS[rating], // 真正記下到期時間，排序才有依據
+        times: (STATE.srsStats[current.id]?.times || 0) + 1
+      };
+      try {
+        localStorage.setItem('nihongo_srs_stats', JSON.stringify(STATE.srsStats));
+      } catch (e) {
+        showToast('瀏覽器無法儲存進度（可能是無痕模式）');
+      }
+
+      const ratingText = rating === 'hard' ? '生疏 (10分鐘後再練)' : rating === 'good' ? '熟悉 (明天複習)' : '已掌握 (3天後複習)';
+      showToast(`${current.plain}: ${ratingText}`);
+
+      STATE.vocabIndex = (STATE.vocabIndex + 1) % list.length;
+      renderVocabCard();
+    }
+
+    /* ==========================================================================
+       4. VISUAL IMAGE QUIZ MODE
+       ========================================================================== */
+    function initVisualQuiz() {
+      STATE.isAnswered = false;
+      document.getElementById('quizActionBanner').classList.add('hidden');
+      
+      const target = VOCAB_DATA[Math.floor(Math.random() * VOCAB_DATA.length)];
+      STATE.currentQuizTarget = target;
+
+      const img = document.getElementById('quizQuestionImage');
+      img.style.opacity = '0';
+      img.onload = () => { img.style.opacity = '1'; };
+      // 圖卡顯示中文語意與情境，由使用者選出對應的日語單字（不洩漏日文寫法）
+      setCardImage(img, target.meaning, getCatName(target.cat), catEmoji(target.cat));
+
+      document.getElementById('quizQuestionHintBadge').textContent = `情境: ${getCatName(target.cat)} (${target.level})`;
+      document.getElementById('btnQuizPlayTargetAudio').onclick = () => playJapaneseAudio(target.plain);
+
+      // 干擾項優先取同情境單字，難度才合理；不足再用其他情境補齊
+      const pool = VOCAB_DATA.filter(item => item.id !== target.id);
+      const sameCat = pool.filter(item => item.cat === target.cat).sort(() => 0.5 - Math.random());
+      const others = pool.filter(item => item.cat !== target.cat).sort(() => 0.5 - Math.random());
+      const distractors = [...sameCat, ...others].slice(0, 3);
+      const choices = [target, ...distractors].sort(() => 0.5 - Math.random());
+
+      const container = document.getElementById('quizOptionsContainer');
+      container.innerHTML = '';
+
+      choices.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 hover:border-rose-400 text-left transition transform active:scale-95 flex flex-col justify-between';
+        btn.innerHTML = `
+          <div>
+            <div class="text-base font-black text-slate-800 dark:text-slate-100">${opt.plain}</div>
+            <div class="text-[11px] font-mono text-slate-400">${opt.romaji}</div>
+          </div>
+          <div class="text-xs text-rose-500 font-medium mt-1 opt-meaning hidden">${opt.meaning.split('、')[0]}</div>
+        `;
+
+        btn.onclick = () => handleQuizAnswer(opt, btn, choices);
+        container.appendChild(btn);
+      });
+    }
+
+    function handleQuizAnswer(selected, chosenBtn, allChoices) {
+      if (STATE.isAnswered) return;
+      STATE.isAnswered = true;
+
+      const target = STATE.currentQuizTarget;
+      const isCorrect = (selected.id === target.id);
+      const banner = document.getElementById('quizActionBanner');
+      const msg = document.getElementById('quizFeedbackMessage');
+
+      banner.classList.remove('hidden');
+
+      if (isCorrect) {
+        STATE.quizStreak += 1;
+        STATE.quizScore += 10;
+        chosenBtn.classList.remove('border-slate-200', 'dark:border-slate-800');
+        chosenBtn.classList.add('!bg-emerald-500', '!text-white', '!border-emerald-500');
+        
+        banner.className = 'p-3 rounded-2xl border text-center transition-all space-y-2 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800';
+        msg.innerHTML = `<span class="text-emerald-700 dark:text-emerald-300 text-xs font-black"><i class="fa-solid fa-circle-check"></i> 答對了！「${target.plain}」正是「${target.meaning}」</span>`;
+        
+        playJapaneseAudio(target.plain);
+
+        if (typeof confetti === 'function' && STATE.quizStreak % 3 === 0) {
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+        }
+      } else {
+        STATE.quizStreak = 0;
+        chosenBtn.classList.add('!bg-rose-500', '!text-white', '!border-rose-500');
+        
+        banner.className = 'p-3 rounded-2xl border text-center transition-all space-y-2 bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800';
+        msg.innerHTML = `<span class="text-rose-700 dark:text-rose-300 text-xs font-black"><i class="fa-solid fa-circle-xmark"></i> 答錯囉！正確答案是「${target.plain}」(${target.meaning})</span>`;
+      }
+
+      // 作答後才揭曉各選項中文；作答前顯示等於直接把答案送出去
+      document.querySelectorAll('#quizOptionsContainer .opt-meaning').forEach(el => el.classList.remove('hidden'));
+
+      document.getElementById('quizStreakBadge').innerHTML = `<i class="fa-solid fa-fire text-amber-500"></i> 連勝: ${STATE.quizStreak}`;
+      document.getElementById('quizTotalScore').textContent = `累積得分: ${STATE.quizScore}`;
+    }
+
+    /* ==========================================================================
+       5. SITUATIONAL BRANCHING DIALOGUE SIMULATOR
+       ========================================================================== */
+    const SCENARIOS = {
+      conbini: {
+        title: '便利商店：微波加熱與購物袋',
+        grammarFocus: {
+          title: '〜て形 + ください (請求) & 〜は結構です (婉拒)',
+          desc: '超商結帳必備！店員常詢問「温めますか？」(需要加熱嗎？) 與「袋にお入れしましょうか？」(需要裝袋嗎？)。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '店員',
+            text: 'いらっしゃいませ。<ruby>温<rt>あたた</rt></ruby>めますか？',
+            plain: 'いらっしゃいませ。温めますか？',
+            zh: '歡迎光臨！需要幫您加熱便當嗎？',
+            choices: [
+              { label: 'はい、お願いします。(好的，麻煩請幫我加熱)', next: 1 },
+              { label: '大丈夫です、そのままで。(不用了，直接這樣就好)', next: 2 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '店員',
+            text: 'かしこまりました。少々お待ちください。袋にお入れしましょうか？',
+            plain: 'かしこまりました。少々お待ちください。袋にお入れしましょうか？',
+            zh: '好的。請稍候。需要幫您裝進袋子裡嗎？',
+            choices: [
+              { label: '袋は結構です。(不用袋子，謝謝)', next: 3 },
+              { label: 'はい、１枚ください。(好的，請給我一個袋子)', next: 4 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '店員',
+            text: 'そのままですね。袋はお使いになりますか？',
+            plain: 'そのままですね。袋はお使いになりますか？',
+            zh: '好的直接帶走。請問需要使用袋子嗎？',
+            choices: [
+              { label: '袋は結構です。(不用袋子)', next: 3 },
+              { label: '袋をお願いします。(請給我袋子)', next: 4 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '店員',
+            text: 'テープだけで失礼します。合計で６８０円になります。',
+            plain: 'テープだけで失礼します。合計で６８０円になります。',
+            zh: '那為您貼上已結帳膠帶。總計是680日圓。',
+            choices: [
+              { label: 'Suicaで払います。(用交通西瓜卡付款)', next: 'end' }
+            ]
+          },
+          {
+            speaker: 'npc', name: '店員',
+            text: '袋代５円頂戴いたします。合計で６８５円です。',
+            plain: '袋代５円頂戴いたします。合計で６８５円です。',
+            zh: '袋子費用收取5日圓。總計是685日圓。',
+            choices: [
+              { label: 'クレジットカードで。(用信用卡結帳)', next: 'end' }
+            ]
+          }
+        ]
+      },
+      ramen: {
+        title: '拉麵店客製：麵條硬度與大蒜',
+        grammarFocus: {
+          title: '名詞 + でお願いします & 〜をください',
+          desc: '說明點餐偏好與客製要求：「硬めでお願いします」（請煮偏硬）、「水をお願いします」（請給我水）。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '店員',
+            text: 'いらっしゃいませ！食券をお預かりします。麺の硬さはいかがなさいますか？',
+            plain: 'いらっしゃいませ！食券をお預かりします。麺の硬さはいかがなさいますか？',
+            zh: '歡迎光臨！為您收取餐券。請問麵條硬度想怎麼選呢？',
+            choices: [
+              { label: '硬めでお願いします。(請幫我煮硬一點)', next: 1 },
+              { label: '普通でいいです。(普通就可以了)', next: 1 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '店員',
+            text: 'かしこまりました。ニンニクはお入れしますか？',
+            plain: 'かしこまりました。ニンニクはお入れしますか？',
+            zh: '好的。請問需要加蒜泥嗎？',
+            choices: [
+              { label: '少し入れてください。(請幫我加一點點)', next: 'end' },
+              { label: 'なしでお願いします。(不用加，謝謝)', next: 'end' }
+            ]
+          }
+        ]
+      },
+      hotel: {
+        title: '飯店櫃檯：入住前行李寄存',
+        grammarFocus: {
+          title: '動詞て形 + もいいですか (詢問許可)',
+          desc: 'N4高頻實用句型，禮貌詢問「我可以...嗎？」。例如「荷物を預けてもいいですか？」（可以寄放行李嗎？）。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '櫃檯接待員',
+            text: 'こんにちは、本日ご宿泊のお客様でしょうか？',
+            plain: 'こんにちは、本日ご宿泊のお客様でしょうか？',
+            zh: '午安，請問是今天辦理住宿的旅客嗎？',
+            choices: [
+              { label: 'はい、今日予約している王です。(是的，我是今天有預約的王先生)', next: 1 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '櫃檯接待員',
+            text: '王様ですね。チェックインは午後３時からとなっております。',
+            plain: '王様ですね。チェックインは午後３時からとなっております。',
+            zh: '王先生您好。我們的入住手續是從下午3點開始。',
+            choices: [
+              { label: 'それまで荷物を預かってもらえますか？(在那之前能幫我保管行李嗎？)', next: 'end' }
+            ]
+          }
+        ]
+      },
+      station: {
+        title: '車站：問路、買票與轉乘',
+        grammarFocus: {
+          title: '疑問詞（どこ・どちら・何番線）＋ 〜たらいいですか',
+          desc: '問路核心句型：「〜はどこですか」（…在哪裡）、「どう行ったらいいですか」（該怎麼走才好）。回答常出現「〜番線」（第幾月台）與「〜行き」（開往…）。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '站務員',
+            text: 'いらっしゃいませ。どちらまで<ruby>行<rt>い</rt></ruby>かれますか？',
+            plain: 'いらっしゃいませ。どちらまで行かれますか？',
+            zh: '您好，請問要到哪裡呢？',
+            choices: [
+              { label: '<ruby>浅草<rt>あさくさ</rt></ruby>へ<ruby>行<rt>い</rt></ruby>きたいです。(我想去淺草)', next: 1 },
+              { label: 'この<ruby>住所<rt>じゅうしょ</rt></ruby>まで、どう<ruby>行<rt>い</rt></ruby>ったらいいですか？(到這個地址該怎麼走？)', next: 1 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '站務員',
+            text: 'でしたら、<ruby>銀座線<rt>ぎんざせん</rt></ruby>で<ruby>一本<rt>いっぽん</rt></ruby>です。３<ruby>番線<rt>ばんせん</rt></ruby>からお<ruby>乗<rt>の</rt></ruby>りください。',
+            plain: 'でしたら、銀座線で一本です。三番線からお乗りください。',
+            zh: '那搭銀座線一班車就到了。請從三號月台搭乘。',
+            choices: [
+              { label: '<ruby>乗<rt>の</rt></ruby>り<ruby>換<rt>か</rt></ruby>えはありませんか？(不用轉乘嗎？)', next: 2 },
+              { label: '<ruby>切符<rt>きっぷ</rt></ruby>はいくらですか？(車票多少錢？)', next: 2 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '站務員',
+            text: '<ruby>乗<rt>の</rt></ruby>り<ruby>換<rt>か</rt></ruby>えなしで、２００<ruby>円<rt>えん</rt></ruby>です。ICカードもお<ruby>使<rt>つか</rt></ruby>いいただけます。',
+            plain: '乗り換えなしで、二百円です。ICカードもお使いいただけます。',
+            zh: '不用轉乘，兩百日圓。也可以使用IC卡。',
+            choices: [
+              { label: 'ICカードで<ruby>大丈夫<rt>だいじょうぶ</rt></ruby>です。ありがとうございます。(用IC卡就好，謝謝)', next: 'end' },
+              { label: 'どのくらいかかりますか？(大概要花多久時間？)', next: 3 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '站務員',
+            text: '２０<ruby>分<rt>ぷん</rt></ruby>ほどです。<ruby>終点<rt>しゅうてん</rt></ruby>の<ruby>手前<rt>てまえ</rt></ruby>ですので、ご<ruby>注意<rt>ちゅうい</rt></ruby>ください。',
+            plain: '二十分ほどです。終点の手前ですので、ご注意ください。',
+            zh: '大約二十分鐘。在終點站的前一站，請留意。',
+            choices: [
+              { label: 'よく<ruby>分<rt>わ</rt></ruby>かりました。どうもありがとうございました。(我了解了，非常感謝)', next: 'end' }
+            ]
+          }
+        ]
+      },
+      drug: {
+        title: '藥妝店：說明症狀、買藥與免稅',
+        grammarFocus: {
+          title: '〜んです（說明情況）＋ 〜たらいいですか',
+          desc: '描述身體狀況用「〜んです」讓語氣自然：「お腹が痛いんです」。請對方給建議用「どれを飲んだらいいですか」。買藥後別忘了「免税できますか」。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '藥妝店員',
+            text: 'いらっしゃいませ。<ruby>何<rt>なに</rt></ruby>かお<ruby>探<rt>さが</rt></ruby>しですか？',
+            plain: 'いらっしゃいませ。何かお探しですか？',
+            zh: '歡迎光臨，請問在找什麼呢？',
+            choices: [
+              { label: '<ruby>風邪<rt>かぜ</rt></ruby>の<ruby>薬<rt>くすり</rt></ruby>を<ruby>探<rt>さが</rt></ruby>しているんです。(我在找感冒藥)', next: 1 },
+              { label: 'お<ruby>腹<rt>なか</rt></ruby>が<ruby>痛<rt>いた</rt></ruby>いんです。(我肚子痛)', next: 1 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '藥妝店員',
+            text: 'それはおつらいですね。<ruby>熱<rt>ねつ</rt></ruby>はありますか？',
+            plain: 'それはおつらいですね。熱はありますか？',
+            zh: '那真不舒服呢。請問有發燒嗎？',
+            choices: [
+              { label: 'はい、<ruby>少<rt>すこ</rt></ruby>しあります。(有，有一點)', next: 2 },
+              { label: 'いいえ、<ruby>熱<rt>ねつ</rt></ruby>はありません。(沒有，沒發燒)', next: 2 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '藥妝店員',
+            text: 'でしたら、こちらがおすすめです。<ruby>一日<rt>いちにち</rt></ruby>３<ruby>回<rt>かい</rt></ruby>、<ruby>食後<rt>しょくご</rt></ruby>に<ruby>飲<rt>の</rt></ruby>んでください。',
+            plain: 'でしたら、こちらがおすすめです。一日三回、食後に飲んでください。',
+            zh: '那這款是我推薦的。請一天三次、飯後服用。',
+            choices: [
+              { label: 'これをください。<ruby>免税<rt>めんぜい</rt></ruby>にできますか？(請給我這個。可以免稅嗎？)', next: 3 },
+              { label: 'もう<ruby>少<rt>すこ</rt></ruby>し<ruby>安<rt>やす</rt></ruby>いのはありますか？(有再便宜一點的嗎？)', next: 3 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '藥妝店員',
+            text: 'かしこまりました。パスポートをお<ruby>願<rt>ねが</rt></ruby>いします。お<ruby>大事<rt>だいじ</rt></ruby>に。',
+            plain: 'かしこまりました。パスポートをお願いします。お大事に。',
+            zh: '好的。麻煩出示護照。請多保重。',
+            choices: [
+              { label: 'はい、どうぞ。ありがとうございます。(好的，請看。謝謝您)', next: 'end' }
+            ]
+          }
+        ]
+      },
+      izakaya: {
+        title: '居酒屋：電話訂位與人數時間',
+        grammarFocus: {
+          title: '〜たいです（意願）＋ 人數時間說法',
+          desc: '訂位固定句：「〜日の〜時に、〜名で予約したいです」。人數用「名」(めい) 或「人」(にん)，時間用「〜時」(じ)。對方確認時常說「〜でよろしいでしょうか」。'
+        },
+        steps: [
+          {
+            speaker: 'npc', name: '居酒屋店員',
+            text: 'お<ruby>電話<rt>でんわ</rt></ruby>ありがとうございます。ご<ruby>予約<rt>よやく</rt></ruby>でしょうか？',
+            plain: 'お電話ありがとうございます。ご予約でしょうか？',
+            zh: '感謝來電，請問是要訂位嗎？',
+            choices: [
+              { label: 'はい、<ruby>今夜<rt>こんや</rt></ruby>７<ruby>時<rt>じ</rt></ruby>に２<ruby>名<rt>めい</rt></ruby>で<ruby>予約<rt>よやく</rt></ruby>したいです。(是的，想訂今晚七點兩位)', next: 1 },
+              { label: '<ruby>今<rt>いま</rt></ruby>から４<ruby>名<rt>めい</rt></ruby>、<ruby>席<rt>せき</rt></ruby>はありますか？(現在四位，有位子嗎？)', next: 1 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '居酒屋店員',
+            text: 'ありがとうございます。お<ruby>席<rt>せき</rt></ruby>はカウンターとテーブル、どちらがよろしいでしょうか？',
+            plain: 'ありがとうございます。お席はカウンターとテーブル、どちらがよろしいでしょうか？',
+            zh: '謝謝。座位想要吧台還是桌席呢？',
+            choices: [
+              { label: 'テーブル<ruby>席<rt>せき</rt></ruby>をお<ruby>願<rt>ねが</rt></ruby>いします。(麻煩給我桌席)', next: 2 },
+              { label: 'どちらでも<ruby>大丈夫<rt>だいじょうぶ</rt></ruby>です。(哪一種都可以)', next: 2 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '居酒屋店員',
+            text: 'かしこまりました。お<ruby>名前<rt>なまえ</rt></ruby>とお<ruby>電話番号<rt>でんわばんごう</rt></ruby>をお<ruby>願<rt>ねが</rt></ruby>いします。',
+            plain: 'かしこまりました。お名前とお電話番号をお願いします。',
+            zh: '好的。麻煩提供您的姓名與電話號碼。',
+            choices: [
+              { label: '<ruby>陳<rt>ちん</rt></ruby>と<ruby>申<rt>もう</rt></ruby>します。<ruby>番号<rt>ばんごう</rt></ruby>は…(敝姓陳，號碼是…)', next: 3 }
+            ]
+          },
+          {
+            speaker: 'npc', name: '居酒屋店員',
+            text: '<ruby>陳様<rt>ちんさま</rt></ruby>ですね。<ruby>本日<rt>ほんじつ</rt></ruby>７<ruby>時<rt>じ</rt></ruby>、２<ruby>名様<rt>めいさま</rt></ruby>で<ruby>承<rt>うけたまわ</rt></ruby>りました。お<ruby>待<rt>ま</rt></ruby>ちしております。',
+            plain: '陳様ですね。本日七時、二名様で承りました。お待ちしております。',
+            zh: '陳先生／小姐是吧。今天七點兩位，已為您保留。恭候您的光臨。',
+            choices: [
+              { label: 'よろしくお<ruby>願<rt>ねが</rt></ruby>いします。<ruby>失礼<rt>しつれい</rt></ruby>します。(麻煩您了，再見)', next: 'end' }
+            ]
+          }
+        ]
+      }
+    };
+
+    function startScenario(scenarioKey, silent) {
+      STATE.currentScenarioKey = scenarioKey;
+      STATE.dialogueStep = 0;
+      
+      const sc = SCENARIOS[scenarioKey];
+      document.getElementById('activeScenarioTitle').textContent = sc.title;
+      document.getElementById('grammarPointTitle').textContent = sc.grammarFocus.title;
+      document.getElementById('grammarPointDesc').textContent = sc.grammarFocus.desc;
+
+      const container = document.getElementById('dialogueContainer');
+      container.innerHTML = '';
+      renderDialogueStep(0, silent);
+    }
+
+    // 只切換注音顯示，不重啟整段對話（原本會把已完成的進度全部清掉）
+    function applyFuriganaVisibility() {
+      document.querySelectorAll('#dialogueContainer .jp-line').forEach(el => {
+        const html = STATE.showFurigana ? el.dataset.furi : el.dataset.plain;
+        if (html) el.innerHTML = html;
+      });
+    }
+
+    function renderDialogueStep(stepIndex, silent) {
+      const sc = SCENARIOS[STATE.currentScenarioKey];
+      const container = document.getElementById('dialogueContainer');
+      const choicesBox = document.getElementById('dialogueChoices');
+
+      if (stepIndex === 'end') {
+        const endBanner = document.createElement('div');
+        endBanner.className = 'text-center p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 font-bold';
+        endBanner.innerHTML = '🎉 任務達成！會話順利完成。';
+        container.appendChild(endBanner);
+
+        choicesBox.innerHTML = `
+          <button class="w-full py-2.5 rounded-xl bg-slate-800 text-white dark:bg-slate-700 text-xs font-bold hover:bg-slate-700" onclick="startScenario('${STATE.currentScenarioKey}')">
+            <i class="fa-solid fa-arrow-rotate-left mr-1"></i> 再次重練本任務
+          </button>
+        `;
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+
+      const step = sc.steps[stepIndex];
+      if (!step) return;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'flex items-start gap-2.5';
+      bubble.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 flex items-center justify-center font-bold text-xs shrink-0">
+          店
+        </div>
+        <div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[85%] space-y-1">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-[10px] text-slate-400 font-semibold">${step.name}</span>
+            <button class="npc-voice-btn text-rose-500 hover:text-rose-600 text-xs">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+          </div>
+          <div class="text-sm font-semibold text-slate-800 dark:text-slate-100 jp-line">
+            ${STATE.showFurigana ? step.text : step.plain}
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 zh-sub ${STATE.showZh ? '' : 'hidden'}">
+            ${step.zh}
+          </div>
+        </div>
+      `;
+
+      const jpLine = bubble.querySelector('.jp-line');
+      jpLine.dataset.furi = step.text;
+      jpLine.dataset.plain = step.plain;
+
+      bubble.querySelector('.npc-voice-btn').onclick = () => playJapaneseAudio(step.plain);
+      container.appendChild(bubble);
+      // 初始化時 silent=true：避免一開啟頁面（人還在 50 音分頁）就突然播放日語
+      if (!silent) playJapaneseAudio(step.plain);
+
+      choicesBox.innerHTML = '';
+      step.choices.forEach(c => {
+        const choiceBtn = document.createElement('button');
+        choiceBtn.className = 'w-full text-left p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100/60 text-xs font-semibold text-rose-900 dark:text-rose-200 transition flex items-center justify-between';
+        choiceBtn.innerHTML = `
+          <span>💬 ${c.label}</span>
+          <i class="fa-solid fa-chevron-right text-[10px] opacity-50"></i>
+        `;
+        choiceBtn.onclick = () => {
+          const userBubble = document.createElement('div');
+          userBubble.className = 'flex items-start justify-end gap-2.5';
+          userBubble.innerHTML = `
+            <div class="bg-rose-500 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] text-xs font-medium">
+              ${c.label}
+            </div>
+            <div class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              我
+            </div>
+          `;
+          container.appendChild(userBubble);
+          choicesBox.innerHTML = '';
+          
+          setTimeout(() => {
+            renderDialogueStep(c.next);
+          }, 600);
+        };
+        choicesBox.appendChild(choiceBtn);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+
+    /* ==========================================================================
+       6. N4 GRAMMAR BANK（文法句型庫 + 文法小測）
+       ========================================================================== */
+    const GRAMMAR_CATS = [
+      { key: 'all', name: '全部句型', icon: '📚' },
+      { key: 'te', name: 'て形活用', icon: '🧩' },
+      { key: 'ability', name: '能力・意志', icon: '💪' },
+      { key: 'cond', name: '條件假定', icon: '🔀' },
+      { key: 'change', name: '經驗・變化', icon: '📈' },
+      { key: 'voice', name: '授受・被動使役', icon: '🔁' },
+      { key: 'guess', name: '推量・傳聞', icon: '💭' },
+      { key: 'keigo', name: '敬語禮貌', icon: '🙇' }
+    ];
+
+    const GRAMMAR_DATA = [
+      { id: 'g_tekudasai', cat: 'te', pattern: '〜てください', zh: '請（幫我）做…', conn: '動詞て形 + ください', note: '最基礎的請求。想更客氣可用「〜ていただけませんか」。', ex: [{ jp: 'これを<ruby>温<rt>あたた</rt></ruby>めてください。', plain: 'これを温めてください。', zh: '請幫我加熱這個。' }, { jp: 'ここに<ruby>名前<rt>なまえ</rt></ruby>を<ruby>書<rt>か</rt></ruby>いてください。', plain: 'ここに名前を書いてください。', zh: '請在這裡寫上名字。' }] },
+      { id: 'g_temoii', cat: 'te', pattern: '〜てもいいですか', zh: '可以…嗎？（請求許可）', conn: '動詞て形 + もいいですか', note: '回答許可用「はい、どうぞ」；婉拒常說「ちょっと…」。', ex: [{ jp: '<ruby>写真<rt>しゃしん</rt></ruby>を<ruby>撮<rt>と</rt></ruby>ってもいいですか。', plain: '写真を撮ってもいいですか。', zh: '可以拍照嗎？' }, { jp: 'ここに<ruby>座<rt>すわ</rt></ruby>ってもいいですか。', plain: 'ここに座ってもいいですか。', zh: '可以坐這裡嗎？' }] },
+      { id: 'g_tewaikemasen', cat: 'te', pattern: '〜てはいけません', zh: '不可以…（禁止）', conn: '動詞て形 + はいけません', note: '告示牌多用更硬的「〜禁止」或「〜ないでください」。', ex: [{ jp: 'ここでタバコを<ruby>吸<rt>す</rt></ruby>ってはいけません。', plain: 'ここでタバコを吸ってはいけません。', zh: '這裡不可以抽菸。' }] },
+      { id: 'g_teiru', cat: 'te', pattern: '〜ています', zh: '正在…／狀態持續', conn: '動詞て形 + います', note: '兩種用法：動作進行（食べています）與狀態持續（結婚しています）。', ex: [{ jp: '<ruby>今<rt>いま</rt></ruby>、<ruby>駅<rt>えき</rt></ruby>で<ruby>待<rt>ま</rt></ruby>っています。', plain: '今、駅で待っています。', zh: '我現在正在車站等。' }, { jp: '<ruby>東京<rt>とうきょう</rt></ruby>に<ruby>住<rt>す</rt></ruby>んでいます。', plain: '東京に住んでいます。', zh: '我住在東京。' }] },
+      { id: 'g_tekara', cat: 'te', pattern: '〜てから', zh: '做完…之後再…', conn: '動詞て形 + から', note: '強調前後順序；只是列舉動作時用「〜て、〜」即可。', ex: [{ jp: 'ご<ruby>飯<rt>はん</rt></ruby>を<ruby>食<rt>た</rt></ruby>べてから<ruby>薬<rt>くすり</rt></ruby>を<ruby>飲<rt>の</rt></ruby>みます。', plain: 'ご飯を食べてから薬を飲みます。', zh: '吃完飯後再吃藥。' }] },
+      { id: 'g_temiru', cat: 'te', pattern: '〜てみる', zh: '試著做看看', conn: '動詞て形 + みる', note: '語氣輕鬆，常用於嘗試新事物。', ex: [{ jp: 'この<ruby>店<rt>みせ</rt></ruby>のラーメンを<ruby>食<rt>た</rt></ruby>べてみます。', plain: 'この店のラーメンを食べてみます。', zh: '我試試看這家店的拉麵。' }] },
+      { id: 'g_teshimau', cat: 'te', pattern: '〜てしまう', zh: '（不小心）做了…／完成', conn: '動詞て形 + しまう', note: '表達懊悔或完成。口語縮約為「〜ちゃう」。', ex: [{ jp: 'パスポートを<ruby>忘<rt>わす</rt></ruby>れてしまいました。', plain: 'パスポートを忘れてしまいました。', zh: '我把護照忘記了。' }] },
+      { id: 'g_teoku', cat: 'te', pattern: '〜ておく', zh: '事先做好…', conn: '動詞て形 + おく', note: '為之後做準備。口語縮約為「〜とく」。', ex: [{ jp: '<ruby>旅行<rt>りょこう</rt></ruby>の<ruby>前<rt>まえ</rt></ruby>にホテルを<ruby>予約<rt>よやく</rt></ruby>しておきます。', plain: '旅行の前にホテルを予約しておきます。', zh: '旅行前先把飯店訂好。' }] },
+      { id: 'g_kanou', cat: 'ability', pattern: '可能形 / 〜ことができる', zh: '會…、能夠…', conn: 'I類：う段→え段＋る（行く→行ける）／II類：る→られる／する→できる', note: '「〜ことができる」較正式，口語多用可能形。注意助詞由「を」改成「が」。', ex: [{ jp: '<ruby>日本語<rt>にほんご</rt></ruby>が<ruby>少<rt>すこ</rt></ruby>し<ruby>話<rt>はな</rt></ruby>せます。', plain: '日本語が少し話せます。', zh: '我會說一點日語。' }, { jp: 'ここでカードを<ruby>使<rt>つか</rt></ruby>うことができますか。', plain: 'ここでカードを使うことができますか。', zh: '這裡可以使用信用卡嗎？' }] },
+      { id: 'g_youtoomou', cat: 'ability', pattern: '〜（よ）うと思う', zh: '打算要…（當下的想法）', conn: '動詞意向形 + と思う', note: '臨時決定或個人想法；比「つもり」語氣輕。', ex: [{ jp: '<ruby>来年<rt>らいねん</rt></ruby><ruby>日本<rt>にほん</rt></ruby>へ<ruby>行<rt>い</rt></ruby>こうと<ruby>思<rt>おも</rt></ruby>います。', plain: '来年日本へ行こうと思います。', zh: '我打算明年去日本。' }] },
+      { id: 'g_tsumori', cat: 'ability', pattern: '〜つもりだ', zh: '打算…（既定計畫）', conn: '動詞辭書形 + つもりだ', note: '比「〜ようと思う」更堅定，已事先規劃。否定：〜ないつもりだ。', ex: [{ jp: '<ruby>今年<rt>ことし</rt></ruby>N4を<ruby>受<rt>う</rt></ruby>けるつもりです。', plain: '今年N4を受けるつもりです。', zh: '我打算今年考N4。' }] },
+      { id: 'g_tai', cat: 'ability', pattern: '〜たいです', zh: '想要做…', conn: '動詞ます形去ます + たい', note: '只用於第一人稱；講別人要用「〜たがっている」。助詞可用が或を。', ex: [{ jp: '<ruby>温泉<rt>おんせん</rt></ruby>に<ruby>入<rt>はい</rt></ruby>りたいです。', plain: '温泉に入りたいです。', zh: '我想泡溫泉。' }] },
+      { id: 'g_nakereba', cat: 'ability', pattern: '〜なければなりません', zh: '必須…', conn: '動詞ない形去い + ければなりません', note: '口語常縮成「〜なきゃ」「〜ないと」。', ex: [{ jp: '<ruby>六時<rt>ろくじ</rt></ruby>までに<ruby>帰<rt>かえ</rt></ruby>らなければなりません。', plain: '六時までに帰らなければなりません。', zh: '必須在六點前回去。' }] },
+      { id: 'g_nakutemo', cat: 'ability', pattern: '〜なくてもいいです', zh: '不…也可以', conn: '動詞ない形去い + くてもいいです', note: '與「〜なければなりません」成對記憶。', ex: [{ jp: '<ruby>靴<rt>くつ</rt></ruby>を<ruby>脱<rt>ぬ</rt></ruby>がなくてもいいです。', plain: '靴を脱がなくてもいいです。', zh: '不脫鞋也可以。' }] },
+      { id: 'g_tara', cat: 'cond', pattern: '〜たら', zh: '如果…的話、…之後', conn: '動詞た形 + ら（名詞・な形：〜だったら／い形：〜かったら）', note: '最萬用的條件句，也可表「做完某事後」。', ex: [{ jp: '<ruby>雨<rt>あめ</rt></ruby>が<ruby>降<rt>ふ</rt></ruby>ったら、<ruby>行<rt>い</rt></ruby>きません。', plain: '雨が降ったら、行きません。', zh: '如果下雨就不去了。' }, { jp: '<ruby>駅<rt>えき</rt></ruby>に<ruby>着<rt>つ</rt></ruby>いたら<ruby>電話<rt>でんわ</rt></ruby>してください。', plain: '駅に着いたら電話してください。', zh: '到車站後請打給我。' }] },
+      { id: 'g_ba', cat: 'cond', pattern: '〜ば', zh: '如果…就…', conn: 'I類：う段→え段＋ば／II類：る→れば／い形：〜ければ', note: '偏重假設條件，後句多為必然結果；不接「〜てください」等命令。', ex: [{ jp: '<ruby>安<rt>やす</rt></ruby>ければ<ruby>買<rt>か</rt></ruby>います。', plain: '安ければ買います。', zh: '便宜的話我就買。' }] },
+      { id: 'g_to', cat: 'cond', pattern: '〜と', zh: '一…就…（必然／自然結果）', conn: '動詞辭書形 + と', note: '用於必然現象、機械操作、路線指引；後句不能有意志、請求。', ex: [{ jp: 'このボタンを<ruby>押<rt>お</rt></ruby>すと、<ruby>切符<rt>きっぷ</rt></ruby>が<ruby>出<rt>で</rt></ruby>ます。', plain: 'このボタンを押すと、切符が出ます。', zh: '按下這個按鈕，票就會出來。' }] },
+      { id: 'g_nara', cat: 'cond', pattern: '〜なら', zh: '如果是…的話（接話題）', conn: '名詞・動詞普通形 + なら', note: '承接對方提到的話題再給建議，最適合旅途中問路。', ex: [{ jp: '<ruby>京都<rt>きょうと</rt></ruby>なら、<ruby>電車<rt>でんしゃ</rt></ruby>が<ruby>便利<rt>べんり</rt></ruby>ですよ。', plain: '京都なら、電車が便利ですよ。', zh: '如果是去京都，搭電車很方便喔。' }] },
+      { id: 'g_takoto', cat: 'change', pattern: '〜たことがある', zh: '曾經…（經驗）', conn: '動詞た形 + ことがある', note: '講人生經驗，不用於昨天這種近期具體事件。', ex: [{ jp: '<ruby>富士山<rt>ふじさん</rt></ruby>に<ruby>登<rt>のぼ</rt></ruby>ったことがあります。', plain: '富士山に登ったことがあります。', zh: '我曾經爬過富士山。' }] },
+      { id: 'g_younaru', cat: 'change', pattern: '〜ようになる', zh: '變得會…（能力／習慣的變化）', conn: '動詞辭書形・可能形 + ようになる', note: '強調「以前不行、現在可以」的轉變。', ex: [{ jp: '<ruby>漢字<rt>かんじ</rt></ruby>が<ruby>読<rt>よ</rt></ruby>めるようになりました。', plain: '漢字が読めるようになりました。', zh: '我變得看得懂漢字了。' }] },
+      { id: 'g_kotonisuru', cat: 'change', pattern: '〜ことにする', zh: '決定要…（自己的決定）', conn: '動詞辭書形・ない形 + ことにする', note: '主詞自己做的決定。', ex: [{ jp: '<ruby>毎日<rt>まいにち</rt></ruby>３０<ruby>分<rt>ぷん</rt></ruby><ruby>勉強<rt>べんきょう</rt></ruby>することにしました。', plain: '毎日三十分勉強することにしました。', zh: '我決定每天念書三十分鐘。' }] },
+      { id: 'g_kotoninaru', cat: 'change', pattern: '〜ことになる', zh: '（被決定）成為…', conn: '動詞辭書形 + ことになる', note: '結果由外部或團體決定，常用於公告。', ex: [{ jp: '<ruby>来月<rt>らいげつ</rt></ruby><ruby>大阪<rt>おおさか</rt></ruby>へ<ruby>出張<rt>しゅっちょう</rt></ruby>することになりました。', plain: '来月大阪へ出張することになりました。', zh: '（公司決定）下個月要去大阪出差。' }] },
+      { id: 'g_nagara', cat: 'change', pattern: '〜ながら', zh: '一邊…一邊…', conn: '動詞ます形去ます + ながら', note: '兩動作同時進行，主要動作放在後句。', ex: [{ jp: '<ruby>音楽<rt>おんがく</rt></ruby>を<ruby>聞<rt>き</rt></ruby>きながら<ruby>散歩<rt>さんぽ</rt></ruby>します。', plain: '音楽を聞きながら散歩します。', zh: '一邊聽音樂一邊散步。' }] },
+      { id: 'g_taritari', cat: 'change', pattern: '〜たり〜たりする', zh: '又是…又是…（列舉）', conn: '動詞た形 + り … + り + する', note: '列舉代表性動作，不代表全部或順序。', ex: [{ jp: '<ruby>週末<rt>しゅうまつ</rt></ruby>は<ruby>本<rt>ほん</rt></ruby>を<ruby>読<rt>よ</rt></ruby>んだり、<ruby>映画<rt>えいが</rt></ruby>を<ruby>見<rt>み</rt></ruby>たりします。', plain: '週末は本を読んだり、映画を見たりします。', zh: '週末會看看書、看看電影。' }] },
+      { id: 'g_ageru', cat: 'voice', pattern: 'あげる・くれる・もらう', zh: '給與收（物品的授受）', conn: 'N を あげる／くれる／N に もらう', note: '視角不同：我給人用あげる；人給我用くれる；我從人那收到用もらう。', ex: [{ jp: '<ruby>友達<rt>ともだち</rt></ruby>にお<ruby>土産<rt>みやげ</rt></ruby>をあげました。', plain: '友達にお土産をあげました。', zh: '我送了伴手禮給朋友。' }, { jp: '<ruby>店員<rt>てんいん</rt></ruby>さんが<ruby>地図<rt>ちず</rt></ruby>をくれました。', plain: '店員さんが地図をくれました。', zh: '店員給了我地圖。' }] },
+      { id: 'g_temorau', cat: 'voice', pattern: '〜てあげる・〜てくれる・〜てもらう', zh: '為某人做／請某人做（行為的授受）', conn: '動詞て形 + あげる／くれる／もらう', note: '旅途最常用：「〜てもらえますか」＝可以請您幫我…嗎。', ex: [{ jp: '<ruby>写真<rt>しゃしん</rt></ruby>を<ruby>撮<rt>と</rt></ruby>ってもらえますか。', plain: '写真を撮ってもらえますか。', zh: '可以請您幫我拍張照嗎？' }] },
+      { id: 'g_ukemi', cat: 'voice', pattern: '受身形（被動）', zh: '被…', conn: 'I類：う段→あ段＋れる／II類：る→られる／する→される', note: '常帶困擾語氣（迷惑の受身），也用於客觀敘述。', ex: [{ jp: '<ruby>電車<rt>でんしゃ</rt></ruby>で<ruby>足<rt>あし</rt></ruby>を<ruby>踏<rt>ふ</rt></ruby>まれました。', plain: '電車で足を踏まれました。', zh: '在電車上被踩到腳。' }] },
+      { id: 'g_shieki', cat: 'voice', pattern: '使役形', zh: '讓…做、使…', conn: 'I類：う段→あ段＋せる／II類：る→させる／する→させる', note: '「〜させてください」是請求許可的客氣說法。', ex: [{ jp: 'ちょっと<ruby>考<rt>かんが</rt></ruby>えさせてください。', plain: 'ちょっと考えさせてください。', zh: '請讓我稍微考慮一下。' }] },
+      { id: 'g_deshou', cat: 'guess', pattern: '〜でしょう／〜だろう', zh: '應該…吧（推測）', conn: '動詞・形容詞普通形 + でしょう', note: '氣象預報的固定說法；語尾上揚時是向對方確認。', ex: [{ jp: '<ruby>明日<rt>あした</rt></ruby>は<ruby>晴<rt>は</rt></ruby>れるでしょう。', plain: '明日は晴れるでしょう。', zh: '明天應該會放晴吧。' }] },
+      { id: 'g_souda_you', cat: 'guess', pattern: '〜そうです（樣態）', zh: '看起來好像…', conn: '動詞ます形去ます／形容詞語幹 + そうです', note: '憑外觀判斷。いい→よさそう、ない→なさそう 為例外。', ex: [{ jp: 'このケーキ、おいしそうですね。', plain: 'このケーキ、おいしそうですね。', zh: '這個蛋糕看起來很好吃呢。' }] },
+      { id: 'g_souda_den', cat: 'guess', pattern: '〜そうです（傳聞）', zh: '聽說…', conn: '動詞・形容詞普通形 + そうです', note: '與樣態そうだ的接續不同，是辨別重點。', ex: [{ jp: '<ruby>天気予報<rt>てんきよほう</rt></ruby>によると、<ruby>明日<rt>あした</rt></ruby>は<ruby>雨<rt>あめ</rt></ruby>だそうです。', plain: '天気予報によると、明日は雨だそうです。', zh: '據天氣預報說，明天會下雨。' }] },
+      { id: 'g_rashii', cat: 'guess', pattern: '〜らしい', zh: '似乎…（根據外部情報推測）', conn: '動詞・形容詞普通形 + らしい', note: '比そうだ(傳聞)多一層自己的判斷。', ex: [{ jp: 'あの<ruby>店<rt>みせ</rt></ruby>はいつも<ruby>混<rt>こ</rt></ruby>んでいるらしいです。', plain: 'あの店はいつも混んでいるらしいです。', zh: '那家店好像總是很擠。' }] },
+      { id: 'g_kamoshirenai', cat: 'guess', pattern: '〜かもしれません', zh: '也許…', conn: '動詞・形容詞普通形 + かもしれません', note: '可能性低於「〜でしょう」。', ex: [{ jp: '<ruby>道<rt>みち</rt></ruby>が<ruby>混<rt>こ</rt></ruby>むかもしれませんから、<ruby>早<rt>はや</rt></ruby>く<ruby>出<rt>で</rt></ruby>ましょう。', plain: '道が混むかもしれませんから、早く出ましょう。', zh: '路上也許會塞，我們早點出門吧。' }] },
+      { id: 'g_hazu', cat: 'guess', pattern: '〜はずです', zh: '照理說應該…', conn: '動詞・形容詞普通形 + はずです', note: '有根據的推斷，與主觀的「〜と思います」不同。', ex: [{ jp: '<ruby>予約<rt>よやく</rt></ruby>しましたから、<ruby>席<rt>せき</rt></ruby>があるはずです。', plain: '予約しましたから、席があるはずです。', zh: '因為訂位了，照理說應該有位子。' }] },
+      { id: 'g_sonkei', cat: 'keigo', pattern: '尊敬語 お〜になる', zh: '（抬高對方的動作）', conn: 'お + 動詞ます形 + になる（例外：行く→いらっしゃる、見る→ご覧になる）', note: '店員對你說的話多屬此類，聽懂比會說更重要。', ex: [{ jp: 'どちらからいらっしゃいましたか。', plain: 'どちらからいらっしゃいましたか。', zh: '請問您從哪裡來的呢？' }] },
+      { id: 'g_kenjou', cat: 'keigo', pattern: '謙譲語 お〜する', zh: '（壓低自己的動作）', conn: 'お + 動詞ます形 + する（例外：言う→申す、する→いたす）', note: '自我介紹用「〜と申します」最得體。', ex: [{ jp: '<ruby>陳<rt>ちん</rt></ruby>と<ruby>申<rt>もう</rt></ruby>します。よろしくお<ruby>願<rt>ねが</rt></ruby>いします。', plain: '陳と申します。よろしくお願いします。', zh: '敝姓陳，請多指教。' }] },
+      { id: 'g_itadakemasen', cat: 'keigo', pattern: '〜ていただけませんか', zh: '能否請您…（最客氣的請求）', conn: '動詞て形 + いただけませんか', note: '客氣程度：〜てください ＜ 〜てもらえますか ＜ 〜ていただけませんか。', ex: [{ jp: 'もう<ruby>一度<rt>いちど</rt></ruby><ruby>言<rt>い</rt></ruby>っていただけませんか。', plain: 'もう一度言っていただけませんか。', zh: '能否請您再說一次？' }] }
+    ];
+
+    const GRAMMAR_QUIZ = [
+      { q: '<ruby>弁当<rt>べんとう</rt></ruby>を<ruby>温<rt>あたた</rt></ruby>め____ください。', zh: '請幫我加熱便當。', opts: ['て', 'た', 'に', 'で'], ans: 0, exp: '請求用「動詞て形 + ください」，温める的て形是「温めて」。' },
+      { q: 'ここで<ruby>写真<rt>しゃしん</rt></ruby>を<ruby>撮<rt>と</rt></ruby>っても____ですか。', zh: '這裡可以拍照嗎？', opts: ['いい', 'ある', 'する', 'ない'], ans: 0, exp: '請求許可的固定句型是「〜てもいいですか」。' },
+      { q: '<ruby>富士山<rt>ふじさん</rt></ruby>に<ruby>登<rt>のぼ</rt></ruby>った____があります。', zh: '我曾經爬過富士山。', opts: ['こと', 'もの', 'ところ', 'とき'], ans: 0, exp: '經驗用「動詞た形 + ことがある」。' },
+      { q: '<ruby>雨<rt>あめ</rt></ruby>が<ruby>降<rt>ふ</rt></ruby>っ____、<ruby>行<rt>い</rt></ruby>きません。', zh: '如果下雨就不去。', opts: ['たら', 'ても', 'ては', 'たり'], ans: 0, exp: '條件用「〜たら」。「〜ても」是「即使…也」，意思相反。' },
+      { q: 'このボタンを<ruby>押<rt>お</rt></ruby>す____、<ruby>切符<rt>きっぷ</rt></ruby>が<ruby>出<rt>で</rt></ruby>ます。', zh: '按下這個按鈕票就會出來。', opts: ['と', 'なら', 'ので', 'のに'], ans: 0, exp: '機械操作等必然結果用「辭書形 + と」。' },
+      { q: '<ruby>漢字<rt>かんじ</rt></ruby>が<ruby>読<rt>よ</rt></ruby>める____なりました。', zh: '我變得看得懂漢字了。', opts: ['ように', 'ことに', 'そうに', 'ために'], ans: 0, exp: '能力變化用「可能形 + ようになる」。' },
+      { q: '<ruby>写真<rt>しゃしん</rt></ruby>を<ruby>撮<rt>と</rt></ruby>って____ますか。', zh: '可以請您幫我拍張照嗎？', opts: ['もらえ', 'あげ', 'くれ', 'いき'], ans: 0, exp: '請對方為自己做某事用「〜てもらえますか」；あげる是自己為別人做。' },
+      { q: '<ruby>六時<rt>ろくじ</rt></ruby>までに<ruby>帰<rt>かえ</rt></ruby>ら____なりません。', zh: '必須在六點前回去。', opts: ['なければ', 'なくても', 'ないで', 'なら'], ans: 0, exp: '義務用「ない形去い + ければなりません」。' },
+      { q: '<ruby>天気予報<rt>てんきよほう</rt></ruby>によると、<ruby>明日<rt>あした</rt></ruby>は<ruby>雨<rt>あめ</rt></ruby>____そうです。', zh: '聽說明天會下雨。', opts: ['だ', '／', 'に', 'の'], ans: 0, exp: '傳聞接普通形，名詞要加「だ」：雨だそうです。樣態そうだ則不加。' },
+      { q: 'このケーキ、おいし____ですね。', zh: '這蛋糕看起來很好吃呢。', opts: ['そう', 'よう', 'らしく', 'みたい'], ans: 0, exp: '看外觀判斷用樣態的「い形容詞語幹 + そうです」。' },
+      { q: 'ちょっと<ruby>考<rt>かんが</rt></ruby>え____ください。', zh: '請讓我稍微考慮一下。', opts: ['させて', 'られて', 'なくて', 'ていて'], ans: 0, exp: '請求許可用使役形 +「〜させてください」。' },
+      { q: 'もう<ruby>一度<rt>いちど</rt></ruby><ruby>言<rt>い</rt></ruby>って____ませんか。', zh: '能否請您再說一次？', opts: ['いただけ', 'さしあげ', 'おり', 'まいり'], ans: 0, exp: '最客氣的請求是「〜ていただけませんか」。' }
+    ];
+
+    let grammarDone = {};
+    try { grammarDone = JSON.parse(localStorage.getItem('nihongo_grammar_done') || '{}'); } catch (e) { grammarDone = {}; }
+    const GSTATE = { cat: 'all', keyword: '', opened: {}, quizIdx: 0, quizRight: 0, quizTotal: 0, quizAnswered: false, quizOrder: [] };
+
+    function grammarCatName(key) {
+      const c = GRAMMAR_CATS.find(x => x.key === key);
+      return c ? c.name : '文法';
+    }
+
+    function renderGrammarCats() {
+      const box = document.getElementById('grammarCatList');
+      box.innerHTML = '';
+      GRAMMAR_CATS.forEach(cat => {
+        const count = cat.key === 'all' ? GRAMMAR_DATA.length : GRAMMAR_DATA.filter(g => g.cat === cat.key).length;
+        const on = GSTATE.cat === cat.key;
+        const btn = document.createElement('button');
+        btn.className = 'px-3 py-1.5 rounded-xl whitespace-nowrap font-semibold transition flex items-center gap-1.5 shrink-0 ' + (on
+          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900 shadow-sm'
+          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700');
+        btn.innerHTML = '<span>' + cat.icon + ' ' + cat.name + '</span><span class="text-[10px] px-1.5 rounded-full ' +
+          (on ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400') +
+          ' font-bold">' + count + '</span>';
+        btn.onclick = () => { GSTATE.cat = cat.key; renderGrammarCats(); renderGrammarList(); };
+        box.appendChild(btn);
+      });
+    }
+
+    function grammarMatches(g) {
+      if (GSTATE.cat !== 'all' && g.cat !== GSTATE.cat) return false;
+      const k = GSTATE.keyword.trim().toLowerCase();
+      if (!k) return true;
+      const hay = (g.pattern + g.zh + g.conn + g.note + g.ex.map(e => e.plain + e.zh).join('')).toLowerCase();
+      return hay.includes(k);
+    }
+
+    function renderGrammarList() {
+      const box = document.getElementById('grammarList');
+      const list = GRAMMAR_DATA.filter(grammarMatches);
+      box.innerHTML = '';
+      document.getElementById('grammarEmpty').classList.toggle('hidden', list.length > 0);
+
+      const doneCount = GRAMMAR_DATA.filter(g => grammarDone[g.id]).length;
+      document.getElementById('grammarProgressLabel').textContent = '已掌握 ' + doneCount + ' / ' + GRAMMAR_DATA.length;
+
+      list.forEach(g => {
+        const open = !!GSTATE.opened[g.id];
+        const done = !!grammarDone[g.id];
+        const card = document.createElement('div');
+        card.className = 'bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden transition ' +
+          (done ? 'border-emerald-300 dark:border-emerald-900/70' : 'border-slate-200 dark:border-slate-800');
+
+        const examples = g.ex.map((e, i) => (
+          '<div class="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/70 dark:border-slate-700/60 relative">' +
+            '<button class="g-ex-audio absolute top-2 right-2 w-7 h-7 rounded-full bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-300 shadow-sm border border-slate-200/60 dark:border-slate-600 flex items-center justify-center text-xs" data-gid="' + g.id + '" data-ex="' + i + '" title="朗讀例句">' +
+              '<i class="fa-solid fa-volume-high"></i></button>' +
+            '<div class="text-sm font-bold text-slate-900 dark:text-white leading-relaxed pr-8 jp-text">' + e.jp + '</div>' +
+            '<p class="text-xs text-slate-600 dark:text-slate-300 mt-1">' + e.zh + '</p>' +
+          '</div>'
+        )).join('');
+
+        card.innerHTML =
+          '<button class="g-head w-full text-left p-3.5 flex items-start justify-between gap-3" data-gid="' + g.id + '">' +
+            '<div class="min-w-0">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<span class="text-base font-black text-slate-800 dark:text-white jp-text">' + g.pattern + '</span>' +
+                (done ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">已掌握</span>' : '') +
+              '</div>' +
+              '<p class="text-xs text-rose-600 dark:text-rose-400 font-bold mt-0.5">' + g.zh + '</p>' +
+            '</div>' +
+            '<div class="flex items-center gap-2 shrink-0">' +
+              '<span class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">' + grammarCatName(g.cat) + '</span>' +
+              '<i class="fa-solid ' + (open ? 'fa-chevron-up' : 'fa-chevron-down') + ' text-[11px] text-slate-400"></i>' +
+            '</div>' +
+          '</button>' +
+          (open ?
+            '<div class="px-3.5 pb-3.5 space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-3">' +
+              '<div class="text-xs"><span class="text-slate-400 font-semibold">接續：</span><span class="text-slate-700 dark:text-slate-200 font-medium jp-text">' + g.conn + '</span></div>' +
+              examples +
+              '<p class="text-[11px] text-rose-800 dark:text-rose-200 bg-rose-50/70 dark:bg-slate-800/80 p-2 rounded-xl border border-rose-100/80 dark:border-slate-700/60 leading-relaxed">💡 ' + g.note + '</p>' +
+              '<button class="g-done w-full py-2 rounded-xl text-xs font-bold border transition ' +
+                (done ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700') +
+                '" data-gid="' + g.id + '">' + (done ? '✓ 已掌握（點擊取消）' : '標記為已掌握') + '</button>' +
+            '</div>' : '');
+
+        box.appendChild(card);
+      });
+    }
+
+    function toggleGrammarDone(id) {
+      if (grammarDone[id]) delete grammarDone[id]; else grammarDone[id] = Date.now();
+      try { localStorage.setItem('nihongo_grammar_done', JSON.stringify(grammarDone)); } catch (e) {}
+      renderGrammarList();
+    }
+
+    /* ---------- 文法小測 ---------- */
+    function startGrammarQuiz() {
+      GSTATE.quizOrder = GRAMMAR_QUIZ.map((_, i) => i).sort(() => 0.5 - Math.random());
+      GSTATE.quizIdx = 0;
+      GSTATE.quizRight = 0;
+      GSTATE.quizTotal = 0;
+      document.getElementById('grammarQuizPanel').classList.remove('hidden');
+      renderGrammarQuestion();
+      document.getElementById('grammarQuizPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderGrammarQuestion() {
+      const item = GRAMMAR_QUIZ[GSTATE.quizOrder[GSTATE.quizIdx % GSTATE.quizOrder.length]];
+      GSTATE.quizAnswered = false;
+      document.getElementById('gqSentence').innerHTML = item.q;
+      document.getElementById('gqZh').textContent = item.zh;
+      document.getElementById('gqFeedback').classList.add('hidden');
+      document.getElementById('grammarQuizScore').textContent = GSTATE.quizRight + ' / ' + GSTATE.quizTotal;
+
+      const box = document.getElementById('gqOptions');
+      box.innerHTML = '';
+      const order = item.opts.map((o, i) => ({ o, i })).sort(() => 0.5 - Math.random());
+      order.forEach(({ o, i }) => {
+        const btn = document.createElement('button');
+        btn.className = 'py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-200 hover:border-rose-400 transition jp-text';
+        btn.textContent = o;
+        btn.onclick = () => answerGrammarQuestion(item, i, btn);
+        box.appendChild(btn);
+      });
+    }
+
+    function answerGrammarQuestion(item, chosen, btn) {
+      if (GSTATE.quizAnswered) return;
+      GSTATE.quizAnswered = true;
+      GSTATE.quizTotal += 1;
+      const correct = chosen === item.ans;
+      if (correct) GSTATE.quizRight += 1;
+
+      btn.classList.add(correct ? '!bg-emerald-500' : '!bg-rose-500', '!text-white', correct ? '!border-emerald-500' : '!border-rose-500');
+
+      const fb = document.getElementById('gqFeedback');
+      fb.className = 'p-3 rounded-2xl border text-left space-y-2 ' + (correct
+        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800'
+        : 'bg-rose-50 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800');
+      document.getElementById('gqExplain').innerHTML =
+        (correct ? '<span class="text-emerald-700 dark:text-emerald-300">✓ 答對了！</span> ' : '<span class="text-rose-700 dark:text-rose-300">✕ 正解是「' + item.opts[item.ans] + '」。</span> ') +
+        '<span class="text-slate-600 dark:text-slate-300">' + item.exp + '</span>';
+      document.getElementById('grammarQuizScore').textContent = GSTATE.quizRight + ' / ' + GSTATE.quizTotal;
+      playJapaneseAudio(item.q.replace('____', item.opts[item.ans]));
+    }
+
+    /* ==========================================================================
+       7. SPEECH RECOGNITION & ACCURACY SCORING
+       ========================================================================== */
+    const SPEECH_PRACTICE_LIST = [
+      {
+        jp: '<ruby>袋<rt>ふくろ</rt></ruby>は<ruby>結構<rt>けっこう</rt></ruby>です。',
+        plain: '袋は結構です。',
+        romaji: 'fukuro wa kekkou desu',
+        zh: '不用袋子，謝謝。'
+      },
+      {
+        jp: 'お<ruby>会計<rt>かいけい</rt></ruby>を<ruby>分<rt>わ</rt></ruby>けてください。',
+        plain: 'お会計を分けてください。',
+        romaji: 'okaikei o wakete kudasai',
+        zh: '請幫我們分開結帳。'
+      },
+      {
+        jp: 'これを<ruby>温<rt>あたた</rt></ruby>めてもらえますか？',
+        plain: 'これを温めてもらえますか？',
+        romaji: 'kore o atatamete moraemasu ka',
+        zh: '能麻煩您幫我加熱這個嗎？'
+      },
+      {
+        jp: '<ruby>今日<rt>きょう</rt></ruby>はいいお<ruby>天気<rt>てんき</rt></ruby>ですね。',
+        plain: '今日はいいお天気ですね。',
+        romaji: 'kyou wa ii otenki desu ne',
+        zh: '今天天氣真好呢。'
+      }
+    ];
+
+    function calculateSimilarity(str1, str2) {
+      const clean1 = str1.replace(/[。、？！\s]/g, '');
+      const clean2 = str2.replace(/[。、？！\s]/g, '');
+      
+      if (!clean1.length || !clean2.length) return 0;
+      if (clean1 === clean2) return 100;
+
+      const m = clean1.length;
+      const n = clean2.length;
+      const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          if (clean1[i - 1] === clean2[j - 1]) {
+            dp[i][j] = dp[i - 1][j - 1];
+          } else {
+            dp[i][j] = Math.min(
+              dp[i - 1][j] + 1,
+              dp[i][j - 1] + 1,
+              dp[i - 1][j - 1] + 1
+            );
+          }
+        }
+      }
+
+      const distance = dp[m][n];
+      const maxLen = Math.max(m, n);
+      const similarity = Math.round((1 - distance / maxLen) * 100);
+      return Math.max(0, similarity);
+    }
+
+    function renderSpeechSentence() {
+      const item = SPEECH_PRACTICE_LIST[STATE.currentSpeechIndex];
+      document.getElementById('speechTargetJp').innerHTML = item.jp;
+      document.getElementById('speechTargetRomaji').textContent = item.romaji;
+      document.getElementById('speechTargetZh').textContent = item.zh;
+      
+      document.getElementById('recognizedTranscript').textContent = '尚未開始錄音...';
+      document.getElementById('matchScoreBadge').classList.add('hidden');
+      document.getElementById('diffContainer').classList.add('hidden');
+
+      // 換句子時一併還原狀態列（原本會留著上一句的分數或紅色錯誤樣式）
+      const status = document.getElementById('recordingStatusText');
+      status.textContent = '點擊麥克風後開始唸出上方日語';
+      status.className = 'text-xs font-bold text-slate-500 dark:text-slate-400';
+    }
+
+    let speechRecognizer = null;
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        document.getElementById('recordingStatusText').textContent = '⚠️ 您的瀏覽器不支援 Web Speech 語音辨識（建議使用 Chrome / Safari）';
+        return;
+      }
+
+      speechRecognizer = new SpeechRecognition();
+      speechRecognizer.lang = 'ja-JP';
+      speechRecognizer.interimResults = false;
+      speechRecognizer.maxAlternatives = 1;
+
+      speechRecognizer.onstart = () => {
+        STATE.isRecording = true;
+        document.getElementById('recordingPulseRing').classList.remove('hidden');
+        document.getElementById('recordingStatusText').textContent = '🎙️ 正在聆聽中... 請說出目標日語！';
+        document.getElementById('recordingStatusText').className = 'text-xs font-bold text-rose-500 animate-pulse';
+      };
+
+      speechRecognizer.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        handleSpeechResult(transcript);
+      };
+
+      speechRecognizer.onerror = (event) => {
+        STATE.isRecording = false;
+        document.getElementById('recordingPulseRing').classList.add('hidden');
+        document.getElementById('recordingStatusText').textContent = `辨識錯誤 (${event.error})，請再試一次。`;
+        document.getElementById('recordingStatusText').className = 'text-xs font-semibold text-red-500';
+      };
+
+      speechRecognizer.onend = () => {
+        STATE.isRecording = false;
+        document.getElementById('recordingPulseRing').classList.add('hidden');
+      };
+    }
+
+    function handleSpeechResult(transcript) {
+      const item = SPEECH_PRACTICE_LIST[STATE.currentSpeechIndex];
+      document.getElementById('recognizedTranscript').textContent = transcript;
+      
+      const score = calculateSimilarity(item.plain, transcript);
+      const badge = document.getElementById('matchScoreBadge');
+      badge.classList.remove('hidden');
+
+      let grade = '再加油';
+      let badgeStyle = 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300';
+      
+      if (score >= 85) {
+        grade = '優 (合格)';
+        badgeStyle = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+      } else if (score >= 60) {
+        grade = '良 (接近)';
+        badgeStyle = 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+      }
+
+      badge.className = `px-2.5 py-0.5 rounded-full font-bold text-xs ${badgeStyle}`;
+      badge.textContent = `${score}分 (${grade})`;
+
+      document.getElementById('recordingStatusText').textContent = `跟讀完成！準確度得分：${score}%`;
+      document.getElementById('recordingStatusText').className = 'text-xs font-semibold text-slate-600 dark:text-slate-300';
+
+      const diffContainer = document.getElementById('diffContainer');
+      const diffChips = document.getElementById('diffCharChips');
+      diffContainer.classList.remove('hidden');
+      diffChips.innerHTML = '';
+
+      const expectedChars = item.plain.replace(/[。、？！\s]/g, '').split('');
+      const spokenChars = transcript.replace(/[。、？！\s]/g, '').split('');
+
+      expectedChars.forEach((ch, idx) => {
+        const chip = document.createElement('span');
+        const matched = spokenChars[idx] === ch;
+        chip.className = `px-2 py-0.5 rounded text-xs font-bold ${
+          matched 
+            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200' 
+            : 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200'
+        }`;
+        chip.textContent = `${ch}${matched ? ' ✓' : ' ✕'}`;
+        diffChips.appendChild(chip);
+      });
+    }
+
+    /* ==========================================================================
+       7. INITIALIZATION & EVENT LISTENERS
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Theme setup
+      if (STATE.theme === 'dark' || (!('nihongo_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+
+      document.getElementById('themeToggleBtn').addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        STATE.theme = isDark ? 'dark' : 'light';
+        localStorage.setItem('nihongo_theme', STATE.theme);
+      });
+
+      // Speed rate setup
+      const rates = [0.8, 1.0, 1.2];
+      // 同步上次儲存的語速，否則標籤永遠顯示 1.0x
+      if (!rates.includes(STATE.speechRate)) STATE.speechRate = 1.0;
+      document.getElementById('speechRateLabel').textContent = `${STATE.speechRate.toFixed(1)}x`;
+      if ('speechSynthesis' in window) pickJapaneseVoice();
+      document.getElementById('speechSpeedBtn').addEventListener('click', () => {
+        const currentIdx = rates.indexOf(STATE.speechRate);
+        const nextRate = rates[(currentIdx + 1) % rates.length];
+        STATE.speechRate = nextRate;
+        localStorage.setItem('nihongo_speech_rate', nextRate);
+        document.getElementById('speechRateLabel').textContent = `${nextRate.toFixed(1)}x`;
+        showToast(`發音語速已設為 ${nextRate.toFixed(1)}x`);
+      });
+
+      // Tab switching
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetModuleId = btn.getAttribute('data-target');
+          
+          document.querySelectorAll('.nav-tab').forEach(t => {
+            t.classList.remove('active', 'text-rose-500', 'dark:text-rose-400');
+            t.classList.add('text-slate-400');
+          });
+          btn.classList.add('active', 'text-rose-500', 'dark:text-rose-400');
+          btn.classList.remove('text-slate-400');
+
+          document.querySelectorAll('.tab-module').forEach(m => m.classList.add('hidden'));
+          document.getElementById(targetModuleId).classList.remove('hidden');
+
+          if (targetModuleId === 'module-kana') {
+            setupCanvasDPI();
+          } else if (targetModuleId === 'module-quiz') {
+            initVisualQuiz();
+          } else if (targetModuleId === 'module-grammar') {
+            renderGrammarList();
+          }
+        });
+      });
+
+      // Kana filter buttons
+      document.getElementById('btnHiragana').onclick = () => {
+        STATE.kanaType = 'hiragana';
+        document.getElementById('btnHiragana').className = 'px-3.5 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-rose-600 dark:text-rose-400 transition';
+        document.getElementById('btnKatakana').className = 'px-3.5 py-1 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-300 transition';
+        renderKanaGrid();
+      };
+      document.getElementById('btnKatakana').onclick = () => {
+        STATE.kanaType = 'katakana';
+        document.getElementById('btnKatakana').className = 'px-3.5 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-rose-600 dark:text-rose-400 transition';
+        document.getElementById('btnHiragana').className = 'px-3.5 py-1 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-300 transition';
+        renderKanaGrid();
+      };
+
+      document.querySelectorAll('.kana-filter-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.kana-filter-btn').forEach(b => {
+            b.className = 'kana-filter-btn px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+          });
+          btn.className = 'kana-filter-btn px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900';
+          STATE.kanaFilter = btn.getAttribute('data-filter');
+          renderKanaGrid();
+        };
+      });
+
+      // Canvas setup & studio controls
+      initCanvas();
+      window.addEventListener('resize', () => {
+        if (!document.getElementById('kanaWritingStudio').classList.contains('hidden')) {
+          setupCanvasDPI();
+        }
+      });
+
+      document.getElementById('btnClearCanvas').onclick = clearCanvas;
+      document.getElementById('btnCloseWritingStudio').onclick = () => {
+        document.getElementById('kanaWritingStudio').classList.add('hidden');
+      };
+
+      // Brush color
+      document.querySelectorAll('.brush-color-btn').forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll('.brush-color-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-rose-400', 'ring-slate-400', 'ring-emerald-400'));
+          STATE.brushColor = b.getAttribute('data-color');
+          const ringColor = STATE.brushColor === 'matcha' ? 'ring-emerald-400' : STATE.brushColor === 'ink' ? 'ring-slate-400' : 'ring-rose-400';
+          b.classList.add('ring-2', ringColor);
+        };
+      });
+
+      document.getElementById('btnStartKanaQuiz').onclick = startKanaQuiz;
+      document.getElementById('btnCloseQuiz').onclick = () => {
+        document.getElementById('kanaQuizModal').classList.add('hidden');
+      };
+
+      // Flashcards interactions
+      document.getElementById('flashcardInner').addEventListener('click', (e) => {
+        if (e.target.closest('#fcRecallMask')) return;
+        STATE.isCardFlipped = !STATE.isCardFlipped;
+        document.getElementById('flashcardInner').classList.toggle('flipped', STATE.isCardFlipped);
+      });
+
+      document.getElementById('fcRecallMask').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('fcRecallMask').classList.add('hidden');
+        showToast('已揭開日語寫法！');
+      });
+
+      document.getElementById('btnToggleRecallMode').addEventListener('click', () => {
+        STATE.recallMode = !STATE.recallMode;
+        const btn = document.getElementById('btnToggleRecallMode');
+        const lbl = document.getElementById('recallModeLabel');
+        if (STATE.recallMode) {
+          btn.className = 'text-xs px-2.5 py-1 rounded-xl bg-amber-500 text-white font-semibold flex items-center gap-1.5 shadow-sm transition';
+          lbl.textContent = '看圖回想: 開啟';
+          showToast('已開啟「看圖主動回想」模式');
+        } else {
+          btn.className = 'text-xs px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 font-semibold flex items-center gap-1.5 transition';
+          lbl.textContent = '看圖回想: 關閉';
+        }
+        renderVocabCard();
+      });
+
+      document.getElementById('btnPrevCard').onclick = () => {
+        const list = getFilteredVocab();
+        STATE.vocabIndex = (STATE.vocabIndex - 1 + list.length) % list.length;
+        renderVocabCard();
+      };
+      document.getElementById('btnNextCard').onclick = () => {
+        const list = getFilteredVocab();
+        STATE.vocabIndex = (STATE.vocabIndex + 1) % list.length;
+        renderVocabCard();
+      };
+
+      document.querySelectorAll('.vocab-level-btn').forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll('.vocab-level-btn').forEach(btn => btn.className = 'vocab-level-btn px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300');
+          b.className = 'vocab-level-btn px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 shadow-sm text-rose-600 dark:text-rose-300';
+          STATE.vocabLevel = b.getAttribute('data-level');
+          STATE.vocabIndex = 0;
+          rebuildVocabView();
+          renderCategoryTabs();
+          renderVocabCard();
+        };
+      });
+
+      document.getElementById('srsBtnHard').onclick = () => handleSRS('hard');
+      document.getElementById('srsBtnGood').onclick = () => handleSRS('good');
+      document.getElementById('srsBtnEasy').onclick = () => handleSRS('easy');
+
+      // Visual Quiz
+      document.getElementById('btnNextQuizQuestion').onclick = () => initVisualQuiz();
+
+      // Dialogue Scenario switching
+      document.querySelectorAll('.scenario-btn').forEach(b => {
+        b.onclick = () => {
+          document.querySelectorAll('.scenario-btn').forEach(btn => {
+            btn.className = 'scenario-btn p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-left transition';
+          });
+          b.className = 'scenario-btn active p-2.5 rounded-xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-left transition';
+          startScenario(b.getAttribute('data-scenario'));
+        };
+      });
+
+      document.getElementById('toggleFuriganaBtn').onclick = () => {
+        STATE.showFurigana = !STATE.showFurigana;
+        document.getElementById('toggleFuriganaBtn').textContent = `假名: ${STATE.showFurigana ? '開' : '關'}`;
+        applyFuriganaVisibility();
+      };
+
+      document.getElementById('toggleZhBtn').onclick = () => {
+        STATE.showZh = !STATE.showZh;
+        document.getElementById('toggleZhBtn').textContent = `翻譯: ${STATE.showZh ? '開' : '關'}`;
+        document.querySelectorAll('.zh-sub').forEach(el => el.classList.toggle('hidden', !STATE.showZh));
+      };
+
+      // N4 文法模組
+      renderGrammarCats();
+      renderGrammarList();
+
+      document.getElementById('grammarSearch').addEventListener('input', (e) => {
+        GSTATE.keyword = e.target.value;
+        renderGrammarList();
+      });
+
+      document.getElementById('grammarList').addEventListener('click', (e) => {
+        const head = e.target.closest('.g-head');
+        if (head) {
+          const id = head.getAttribute('data-gid');
+          GSTATE.opened[id] = !GSTATE.opened[id];
+          renderGrammarList();
+          return;
+        }
+        const doneBtn = e.target.closest('.g-done');
+        if (doneBtn) {
+          toggleGrammarDone(doneBtn.getAttribute('data-gid'));
+          return;
+        }
+        const audio = e.target.closest('.g-ex-audio');
+        if (audio) {
+          const g = GRAMMAR_DATA.find(x => x.id === audio.getAttribute('data-gid'));
+          const ex = g && g.ex[parseInt(audio.getAttribute('data-ex'), 10)];
+          if (ex) playJapaneseAudio(ex.plain);
+        }
+      });
+
+      document.getElementById('btnGrammarQuiz').onclick = startGrammarQuiz;
+      document.getElementById('btnCloseGrammarQuiz').onclick = () => {
+        document.getElementById('grammarQuizPanel').classList.add('hidden');
+      };
+      document.getElementById('btnNextGrammarQ').onclick = () => {
+        GSTATE.quizIdx += 1;
+        renderGrammarQuestion();
+      };
+
+      // Speech Pronunciation Evaluation
+      initSpeechRecognition();
+      renderSpeechSentence();
+
+      document.getElementById('btnPlayReferenceAudio').onclick = () => {
+        const item = SPEECH_PRACTICE_LIST[STATE.currentSpeechIndex];
+        playJapaneseAudio(item.plain);
+      };
+
+      document.getElementById('btnNextSpeechSentence').onclick = () => {
+        STATE.currentSpeechIndex = (STATE.currentSpeechIndex + 1) % SPEECH_PRACTICE_LIST.length;
+        renderSpeechSentence();
+      };
+
+      document.getElementById('btnRecordMic').onclick = () => {
+        if (!speechRecognizer) {
+          showToast('此瀏覽器尚未支援 Web Speech 辨識功能');
+          return;
+        }
+        if (STATE.isRecording) {
+          speechRecognizer.stop();
+        } else {
+          try {
+            speechRecognizer.start();
+          } catch(e) {
+            console.warn(e);
+          }
+        }
+      };
+
+      // 鍵盤操作：在「圖解單字」分頁用左右鍵換卡、空白鍵翻面
+      document.addEventListener('keydown', (e) => {
+        if (document.getElementById('module-vocab').classList.contains('hidden')) return;
+        const list = getFilteredVocab();
+        if (!list.length) return;
+        if (e.key === 'ArrowRight') {
+          STATE.vocabIndex = (STATE.vocabIndex + 1) % list.length;
+          renderVocabCard();
+        } else if (e.key === 'ArrowLeft') {
+          STATE.vocabIndex = (STATE.vocabIndex - 1 + list.length) % list.length;
+          renderVocabCard();
+        } else if (e.code === 'Space') {
+          e.preventDefault();
+          STATE.isCardFlipped = !STATE.isCardFlipped;
+          document.getElementById('flashcardInner').classList.toggle('flipped', STATE.isCardFlipped);
+        }
+      });
+
+      // 以網址 hash 指定開啟分頁（manifest shortcuts 會用到）
+      if (location.hash) {
+        const target = document.querySelector('.nav-tab[data-target="' + location.hash.slice(1) + '"]');
+        if (target) target.click();
+      }
+
+      // Initial page state
+      renderKanaGrid();
+      rebuildVocabView();
+      renderCategoryTabs();
+      renderVocabCard();
+      startScenario('conbini', true);
+    });
+
+    /* ==========================================================================
+       SERVICE WORKER：離線使用與版本更新
+       ========================================================================== */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          // 偵測到新版本時，提示使用者重新整理
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                showToast('已有新版本，重新開啟即可更新');
+              }
+            });
+          });
+        }).catch(err => console.warn('SW 註冊失敗:', err));
+      });
+    }
+  </script>
+</body>
+</html>
